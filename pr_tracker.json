@@ -1,0 +1,30 @@
+{
+  "description": "Tracks Dockerfile fix PRs submitted to open-source projects",
+  "display_threshold": 5,
+  "display_section_name": "Example detections",
+  "prs": [
+    {
+      "repo": "rafalp/Misago",
+      "stars": 2710,
+      "pr_url": "https://github.com/rafalp/Misago/pull/2041",
+      "pr_number": 2041,
+      "branch": "fix/dockerfile-best-practices",
+      "status": "open",
+      "submitted": "2026-03-07",
+      "merged": null,
+      "fixes": [
+        "rm -rf /var/lib/apt/lists/*",
+        "ADD -> COPY",
+        "--no-cache-dir",
+        "exec-form CMD"
+      ],
+      "validation": {
+        "build_pass": true,
+        "packages_identical": true,
+        "pip_identical": true,
+        "image_size_saved_mb": 58,
+        "checks_passed": "10/10"
+      }
+    }
+  ]
+}
