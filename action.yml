@@ -1,0 +1,150 @@
+name: 'Dockerfile Doctor'
+description: 'Lint, score, and auto-fix Dockerfiles for best practices, security, and performance. 80 rules with auto-fix.'
+author: 'crabsatellite'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  paths:
+    description: 'Dockerfile paths or directories to scan (space-separated)'
+    required: false
+    default: '.'
+  severity:
+    description: 'Minimum severity to report: info, warning, error'
+    required: false
+    default: 'info'
+  ignore:
+    description: 'Comma-separated rule IDs to ignore (e.g. DD001,DD012)'
+    required: false
+    default: ''
+  format:
+    description: 'Output format: text, json, sarif'
+    required: false
+    default: 'text'
+  fix:
+    description: 'Auto-fix issues (true/false)'
+    required: false
+    default: 'false'
+  diff:
+    description: 'Only lint changed lines (true/false). Uses PR base as reference.'
+    required: false
+    default: 'false'
+  score:
+    description: 'Show Dockerfile quality score (true/false)'
+    required: false
+    default: 'false'
+  config:
+    description: 'Path to .dockerfile-doctor.yaml config file'
+    required: false
+    default: ''
+  sarif-file:
+    description: 'Write SARIF output to this file for GitHub Code Scanning'
+    required: false
+    default: ''
+  fail-on-error:
+    description: 'Fail the action if errors are found (true/false)'
+    required: false
+    default: 'true'
+
+outputs:
+  exit-code:
+    description: 'Exit code from dockerfile-doctor (0=clean, 1=errors found)'
+  issues-count:
+    description: 'Total number of issues found'
+  grade:
+    description: 'Dockerfile quality grade (A-F), when score is enabled'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Dockerfile Doctor
+      shell: bash
+      run: |
+        pip install "${{ github.action_path }}" --quiet
+
+    - name: Determine diff ref
+      if: inputs.diff == 'true'
+      shell: bash
+      id: diff-ref
+      env:
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        if [ -n "$PR_BASE_SHA" ]; then
+          echo "ref=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
+        else
+          echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run Dockerfile Doctor
+      shell: bash
+      id: lint
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_SEVERITY: ${{ inputs.severity }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_FIX: ${{ inputs.fix }}
+        INPUT_DIFF: ${{ inputs.diff }}
+        INPUT_DIFF_REF: ${{ steps.diff-ref.outputs.ref }}
+        INPUT_SCORE: ${{ inputs.score }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        ARGS="$INPUT_PATHS"
+
+        if [ -n "$INPUT_SEVERITY" ]; then
+          ARGS="$ARGS --severity $INPUT_SEVERITY"
+        fi
+
+        if [ -n "$INPUT_IGNORE" ]; then
+          ARGS="$ARGS --ignore $INPUT_IGNORE"
+        fi
+
+        if [ -n "$INPUT_CONFIG" ]; then
+          ARGS="$ARGS --config $INPUT_CONFIG"
+        fi
+
+        if [ "$INPUT_FIX" == "true" ]; then
+          ARGS="$ARGS --fix"
+        fi
+
+        if [ "$INPUT_DIFF" == "true" ]; then
+          ARGS="$ARGS --diff $INPUT_DIFF_REF"
+        fi
+
+        if [ "$INPUT_SCORE" == "true" ]; then
+          ARGS="$ARGS --score"
+        fi
+
+        ARGS="$ARGS --format $INPUT_FORMAT"
+
+        if [ -n "$INPUT_SARIF_FILE" ]; then
+          # Run SARIF output separately for upload
+          dockerfile-doctor $INPUT_PATHS --format sarif -o "$INPUT_SARIF_FILE" || true
+        fi
+
+        set +e
+        dockerfile-doctor $ARGS --no-color
+        EXIT_CODE=$?
+        set -e
+
+        echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+        if [ "$INPUT_FAIL_ON_ERROR" == "true" ] && [ "$EXIT_CODE" -ne 0 ]; then
+          exit $EXIT_CODE
+        fi
+
+    - name: Upload SARIF
+      if: inputs.sarif-file != '' && always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+      continue-on-error: true

@@ -1,0 +1,13 @@
+FROM ubuntu:latest
+MAINTAINER dev@example.com
+RUN apt-get update
+RUN apt-get install -y curl wget git
+RUN pip install flask requests
+COPY . .
+ADD config.json /app/config.json
+ENV SECRET_KEY=supersecret123
+EXPOSE 22
+EXPOSE 8080
+WORKDIR app
+run echo "hello world"
+CMD python app.py

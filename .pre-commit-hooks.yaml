@@ -1,0 +1,7 @@
+- id: dockerfile-doctor
+  name: Dockerfile Doctor
+  description: Lint Dockerfiles for security, performance, and best practices
+  entry: dockerfile-doctor
+  language: python
+  files: (Dockerfile|\.dockerfile)$
+  types: [file]

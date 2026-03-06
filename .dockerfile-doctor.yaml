@@ -1,0 +1,20 @@
+# Dockerfile Doctor configuration
+# Place this file in your project root as .dockerfile-doctor.yaml
+
+# Minimum severity to report: info, warning, error
+severity: info
+
+# Rule IDs to ignore globally
+ignore: []
+  # - DD012
+  # - DD015
+
+# Per-rule configuration overrides
+rules: {}
+  # DD001:
+  #   severity: error          # promote "no version tag" to error
+  # DD018:
+  #   allowed_images:          # restrict base images
+  #     - ubuntu
+  #     - debian
+  #     - alpine
