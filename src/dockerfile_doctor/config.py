@@ -69,12 +69,15 @@ def _strip_trailing_comment(line: str) -> str:
 
 
 def _load_yaml_fallback(text: str) -> dict[str, Any]:
-    """Minimal YAML subset parser — supports scalars, lists, and one level
-    of nested mappings.  Enough for .dockerfile-doctor.yaml."""
+    """Minimal YAML subset parser — supports scalars, lists, and up to two
+    levels of nested mappings.  Enough for .dockerfile-doctor.yaml."""
     result: dict[str, Any] = {}
     current_key: Optional[str] = None
     current_sub: Optional[dict[str, Any]] = None
     current_list: Optional[list[str]] = None
+    # For two-level nesting (e.g. rules: DD008: severity: error)
+    current_sub_key: Optional[str] = None
+    current_sub_sub: Optional[dict[str, Any]] = None
 
     for raw_line in text.splitlines():
         # Strip full-line comments and trailing comments (after whitespace)
@@ -89,11 +92,14 @@ def _load_yaml_fallback(text: str) -> dict[str, Any]:
         indent = len(line) - len(line.lstrip())
 
         if indent == 0:
-            # Top-level key
+            # Top-level key — flush everything
+            _flush_sub_sub(current_sub, current_sub_key, current_sub_sub)
             _flush_sub(result, current_key, current_sub)
             _flush_list(result, current_key, current_list)
             current_sub = None
             current_list = None
+            current_sub_key = None
+            current_sub_sub = None
 
             if ":" not in line:
                 continue
@@ -105,6 +111,20 @@ def _load_yaml_fallback(text: str) -> dict[str, Any]:
                 result[key] = _parse_scalar(val)
             # else: value comes from indented block below
 
+        elif indent >= 4 and current_sub is not None and current_sub_key is not None:
+            # Third level (e.g. severity: error under DD008: under rules:)
+            stripped = line.strip()
+            if ":" in stripped:
+                if current_sub_sub is None:
+                    current_sub_sub = {}
+                deep_key, _, deep_val = stripped.partition(":")
+                deep_key = deep_key.strip()
+                deep_val = deep_val.strip()
+                if deep_val:
+                    current_sub_sub[deep_key] = _parse_scalar(deep_val)
+                else:
+                    current_sub_sub[deep_key] = None
+
         elif indent >= 2 and current_key is not None:
             stripped = line.strip()
             if stripped.startswith("- "):
@@ -113,7 +133,10 @@ def _load_yaml_fallback(text: str) -> dict[str, Any]:
                     current_list = []
                 current_list.append(_parse_scalar(stripped[2:].strip()))
             elif ":" in stripped:
-                # Nested mapping (one level)
+                # Nested mapping — flush previous sub-sub
+                _flush_sub_sub(current_sub, current_sub_key, current_sub_sub)
+                current_sub_sub = None
+
                 if current_list is not None:
                     _flush_list(result, current_key, current_list)
                     current_list = None
@@ -122,15 +145,27 @@ def _load_yaml_fallback(text: str) -> dict[str, Any]:
                 sub_key, _, sub_val = stripped.partition(":")
                 sub_key = sub_key.strip()
                 sub_val = sub_val.strip()
+                current_sub_key = sub_key
                 if sub_val:
                     current_sub[sub_key] = _parse_scalar(sub_val)
+                    current_sub_key = None  # no deeper nesting expected
                 else:
-                    # Could be a deeper list — for simplicity, store None
                     current_sub[sub_key] = None
 
+    _flush_sub_sub(current_sub, current_sub_key, current_sub_sub)
     _flush_sub(result, current_key, current_sub)
     _flush_list(result, current_key, current_list)
     return result
+
+
+def _flush_sub_sub(
+    sub: Optional[dict[str, Any]],
+    sub_key: Optional[str],
+    sub_sub: Optional[dict[str, Any]],
+) -> None:
+    """Flush a third-level mapping into its parent."""
+    if sub is not None and sub_key and sub_sub is not None:
+        sub[sub_key] = sub_sub
 
 
 def _flush_sub(
