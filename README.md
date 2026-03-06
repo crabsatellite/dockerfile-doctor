@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/dockerfile-doctor)](https://pypi.org/project/dockerfile-doctor/)
 [![License](https://img.shields.io/github/license/crabsatellite/dockerfile-doctor)](LICENSE)
 
-The only Dockerfile linter that fixes what it finds. 80 rules, 50 auto-fixers, pure Python, zero dependencies.
+The only Dockerfile linter that fixes what it finds. 80 rules, 51 auto-fixers, pure Python, zero dependencies.
 
 ```
 $ dockerfile-doctor Dockerfile
@@ -26,9 +26,9 @@ Dockerfile: ./Dockerfile
 
 Every Dockerfile linter tells you what's wrong. None of them fix it for you.
 
-Dockerfile Doctor is a **lint-and-fix** tool: run `dockerfile-doctor --fix` and 50 rules are applied automatically — cache cleanup, security hardening, exec-form conversion, layer consolidation, and more. No manual edits, no copy-pasting from Stack Overflow.
+Dockerfile Doctor is a **lint-and-fix** tool: run `dockerfile-doctor --fix` and 51 rules are applied automatically — cache cleanup, security hardening, exec-form conversion, layer consolidation, and more. No manual edits, no copy-pasting from Stack Overflow.
 
-- **50 deterministic auto-fixers** that rewrite your Dockerfile correctly.
+- **51 deterministic auto-fixers** that rewrite your Dockerfile correctly.
 - **80 rules** covering security, performance, correctness, and maintainability.
 - **Pure Python, zero dependencies.** `pip install` and go. ~100KB installed.
 - **Programmatic API.** Parse, analyze, and fix Dockerfiles in your own tools.
@@ -44,7 +44,7 @@ Dockerfile Doctor is a **lint-and-fix** tool: run `dockerfile-doctor --fix` and 
 |                   | Dockerfile Doctor       | Hadolint                |
 | ----------------- | ----------------------- | ----------------------- |
 | **Focus**         | Lint + auto-fix         | Lint + shell analysis   |
-| **Auto-fix**      | 50 rules                | Not available           |
+| **Auto-fix**      | 51 rules                | Not available           |
 | **Shell linting** | Dockerfile-level        | ShellCheck (~200 rules) |
 | **Install**       | `pip install`           | Binary / Docker         |
 | **Language**      | Python (importable API) | Haskell                 |
@@ -90,7 +90,7 @@ dockerfile-doctor --ignore DD012,DD015 Dockerfile
 
 ## Rules
 
-80 rules across security, performance, and maintainability. 50 are auto-fixable.
+80 rules across security, performance, and maintainability. 51 are auto-fixable.
 
 ### Security (12 rules)
 
@@ -178,7 +178,7 @@ dockerfile-doctor --ignore DD012,DD015 Dockerfile
 | DD041 | COPY/ADD to relative path without WORKDIR  | WARN | Yes |
 | DD042 | `ONBUILD` instruction found                | INFO |     |
 | DD045 | `RUN cd` instead of `WORKDIR`              | INFO | Yes |
-| DD046 | No LABEL instructions                      | INFO |     |
+| DD046 | No LABEL instructions                      | INFO | Yes |
 | DD048 | Duplicate EXPOSE                           | INFO | Yes |
 | DD050 | Stage name should be lowercase             | INFO | Yes |
 | DD067 | Missing `NODE_ENV=production`              | INFO | Yes |
@@ -199,7 +199,7 @@ flowchart TD
     A["Dockerfile text"] --> B["parser.py<br/><i>continuations, heredoc,<br/>multi-stage, escape directives</i>"]
     B --> C["rules.py<br/><i>80 rules via @rule decorator<br/>ALL_RULES registry</i>"]
     C --> D{"--fix?"}
-    D -- Yes --> E["fixer.py<br/><i>50 auto-fix handlers<br/>two-phase convergence loop</i>"]
+    D -- Yes --> E["fixer.py<br/><i>51 auto-fix handlers<br/>two-phase convergence loop</i>"]
     E --> F["Re-parse & re-analyze<br/><i>up to 3 passes</i>"]
     F --> C
     D -- No --> G["reporter.py<br/><i>Text · JSON · SARIF 2.1.0</i>"]
