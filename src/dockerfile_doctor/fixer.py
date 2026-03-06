@@ -1237,18 +1237,20 @@ def _fix_dd008(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
         return None
     if not dockerfile.stages:
         return None
-    final_stage = dockerfile.stages[-1]
-    # Find the last CMD or ENTRYPOINT in the final stage
-    last_cmd = None
-    for instr in final_stage.instructions:
-        if instr.directive in ("CMD", "ENTRYPOINT"):
-            last_cmd = instr
-    if last_cmd is not None:
-        # Insert USER nobody before the last CMD/ENTRYPOINT
-        start, _ = _find_instruction_lines(lines, last_cmd.line_number)
-        lines.insert(start, "USER nobody")
+    # Find the last CMD or ENTRYPOINT by scanning the current lines array
+    # (not the original parse) to account for mutations from earlier fixes.
+    last_cmd_idx = None
+    for idx in range(1, len(lines)):
+        stripped = lines[idx].strip().upper()
+        if stripped.startswith("CMD ") or stripped.startswith("CMD\t") \
+                or stripped == "CMD" \
+                or stripped.startswith("ENTRYPOINT ") or stripped.startswith("ENTRYPOINT\t") \
+                or stripped == "ENTRYPOINT":
+            last_cmd_idx = idx
+    if last_cmd_idx is not None:
+        lines.insert(last_cmd_idx, "USER nobody")
         return Fix(rule_id="DD008", description="Added USER nobody before CMD/ENTRYPOINT.",
-                   insertions=[(start, "USER nobody")])
+                   insertions=[(last_cmd_idx, "USER nobody")])
     else:
         # No CMD/ENTRYPOINT — append at the very end
         lines.append("USER nobody")

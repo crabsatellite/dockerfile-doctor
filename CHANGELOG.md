@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-03-07
+
+### Fixed
+- Fix DD008 (USER instruction) corruption when combined with DD004 (apt cleanup)
+  on single-RUN Dockerfiles. Handler now scans mutated lines instead of stale parse data.
+- Reporter now shows "N fixes applied" when --fix is used instead of "use --fix to apply".
+
 ## [0.1.1] - 2026-03-07
 
 ### Fixed

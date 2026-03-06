@@ -152,7 +152,12 @@ def _format_text(
                 f"  Found {total_in_file} issue{'s' if total_in_file != 1 else ''} "
                 f"({', '.join(parts)})"
             )
-            if fixable:
+            if result.fixes:
+                nfixed = len(result.fixes)
+                lines.append(
+                    f"  {c.GREEN}{nfixed} fix{'es' if nfixed != 1 else ''} applied{c.RESET}"
+                )
+            elif fixable:
                 lines.append(
                     f"  {c.GREEN}{fixable} auto-fixable issue{'s' if fixable != 1 else ''}{c.RESET}"
                     f" (use {c.BOLD}--fix{c.RESET} to apply)"
