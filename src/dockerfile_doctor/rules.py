@@ -7,11 +7,7 @@ from typing import Callable
 
 from .models import Category, Dockerfile, Issue, Severity
 
-_KNOWN_DIRECTIVES = frozenset({
-    "FROM", "RUN", "CMD", "LABEL", "MAINTAINER", "EXPOSE", "ENV",
-    "ADD", "COPY", "ENTRYPOINT", "VOLUME", "USER", "WORKDIR",
-    "ARG", "ONBUILD", "STOPSIGNAL", "HEALTHCHECK", "SHELL",
-})
+from .parser import _KNOWN_DIRECTIVES
 
 # ---------------------------------------------------------------------------
 # Type alias for a rule function
@@ -65,6 +61,8 @@ _SECRET_FALSE_POSITIVE = re.compile(
 )
 
 _INSECURE_PORTS = {"21", "23"}
+
+_TODO_FIXME_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
 
 
 def _image_basename(image: str) -> str:
@@ -382,6 +380,7 @@ def dd008_no_user(dockerfile: Dockerfile) -> list[Issue]:
             category=Category.SECURITY,
             line_number=0,
             fix_available=True,
+            fix_description="Add USER nobody before final CMD/ENTRYPOINT.",
         ))
     elif user_instrs[-1].arguments.strip().lower() in ("root", "0"):
         # Last USER instruction sets root — still a risk
@@ -581,6 +580,7 @@ def dd015_python_env(dockerfile: Dockerfile) -> list[Issue]:
             category=Category.BEST_PRACTICE,
             line_number=0,
             fix_available=True,
+            fix_description="Add PYTHONUNBUFFERED=1 and PYTHONDONTWRITEBYTECODE=1 ENV.",
         ))
     return issues
 
@@ -1485,7 +1485,8 @@ def dd046_missing_label(dockerfile: Dockerfile) -> list[Issue]:
             severity=Severity.INFO,
             category=Category.MAINTAINABILITY,
             line_number=0,
-            fix_available=False,
+            fix_available=True,
+            fix_description="Add LABEL maintainer and description after FROM.",
         ))
     return issues
 
@@ -2118,7 +2119,7 @@ def dd071_instruction_casing(dockerfile: Dockerfile) -> list[Issue]:
 def dd072_todo_fixme(dockerfile: Dockerfile) -> list[Issue]:
     issues: list[Issue] = []
     for line_idx, raw_line in enumerate(dockerfile.lines, 1):
-        if re.search(r"\b(TODO|FIXME|HACK|XXX)\b", raw_line, re.IGNORECASE):
+        if _TODO_FIXME_RE.search(raw_line):
             issues.append(Issue(
                 rule_id="DD072",
                 title="TODO/FIXME comment found",
@@ -2159,21 +2160,19 @@ def dd073_missing_final_newline(dockerfile: Dockerfile) -> list[Issue]:
 def dd074_long_run(dockerfile: Dockerfile) -> list[Issue]:
     issues: list[Issue] = []
     for instr in _instructions_by_directive(dockerfile, "RUN"):
-        # Check the raw original line (without continuations)
-        for line_idx, raw_line in enumerate(dockerfile.lines):
-            if line_idx + 1 == instr.line_number:
-                if len(raw_line) > 200 and "\\" not in raw_line:
-                    issues.append(Issue(
-                        rule_id="DD074",
-                        title="Very long RUN line (>200 chars)",
-                        description="Break long RUN instructions into multiple "
-                                    "lines using backslash continuations for "
-                                    "readability.",
-                        severity=Severity.INFO,
-                        category=Category.MAINTAINABILITY,
-                        line_number=instr.line_number,
-                    ))
-                break
+        # Check the raw original line (without continuations) via direct index
+        raw_line = dockerfile.lines[instr.line_number - 1]
+        if len(raw_line) > 200 and "\\" not in raw_line:
+            issues.append(Issue(
+                rule_id="DD074",
+                title="Very long RUN line (>200 chars)",
+                description="Break long RUN instructions into multiple "
+                            "lines using backslash continuations for "
+                            "readability.",
+                severity=Severity.INFO,
+                category=Category.MAINTAINABILITY,
+                line_number=instr.line_number,
+            ))
     return issues
 
 

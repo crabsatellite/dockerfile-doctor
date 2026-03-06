@@ -14,6 +14,9 @@ def get_changed_lines(filepath: str, diff_ref: str = "HEAD") -> Optional[set[int
     Returns None if the file is untracked (all lines are "changed").
     Returns an empty set if the file has no changes.
     """
+    if diff_ref.startswith("-"):
+        raise ValueError(f"Invalid git ref (must not start with '-'): {diff_ref}")
+
     path = Path(filepath).resolve()
 
     try:

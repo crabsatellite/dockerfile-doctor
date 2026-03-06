@@ -21,6 +21,13 @@ _PARSER_DIRECTIVE_RE = re.compile(r"^#\s*(syntax|escape)\s*=\s*(.+)$", re.IGNORE
 # Pattern for heredoc in RUN instructions: <<[-]?WORD
 _HEREDOC_START_RE = re.compile(r"<<-?\s*['\"]?(\w+)['\"]?")
 
+# Pattern for extracting stage name from FROM ... AS <name>
+_AS_STAGE_NAME_RE = re.compile(r"\bAS\s+(\S+)", re.IGNORECASE)
+
+# Patterns for _parse_base_image
+_PLATFORM_FLAG_RE = re.compile(r"--platform=\S+\s*")
+_AS_SUFFIX_RE = re.compile(r"\s+AS\s+\S+", re.IGNORECASE)
+
 
 def parse(content: str) -> Dockerfile:
     """Parse a Dockerfile string into a structured Dockerfile model.
@@ -174,7 +181,7 @@ def _split_directive(line: str) -> tuple[Optional[str], str]:
 def _extract_stage_name(from_args: str) -> Optional[str]:
     """Extract stage name from FROM arguments, e.g., 'python:3.11 AS builder'."""
     # Pattern: ... AS <name> (case-insensitive)
-    m = re.search(r"\bAS\s+(\S+)", from_args, re.IGNORECASE)
+    m = _AS_STAGE_NAME_RE.search(from_args)
     return m.group(1) if m else None
 
 
@@ -187,9 +194,9 @@ def _parse_base_image(from_args: str) -> tuple[str, Optional[str]]:
           'docker.io/library/python:3.11@sha256:abc' -> ('docker.io/library/python', '3.11')
     """
     # Remove --platform=... flags
-    args = re.sub(r"--platform=\S+\s*", "", from_args).strip()
+    args = _PLATFORM_FLAG_RE.sub("", from_args).strip()
     # Remove AS <name>
-    args = re.sub(r"\s+AS\s+\S+", "", args, flags=re.IGNORECASE).strip()
+    args = _AS_SUFFIX_RE.sub("", args).strip()
 
     if not args:
         return ("scratch", None)

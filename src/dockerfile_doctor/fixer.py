@@ -1297,7 +1297,7 @@ def _fix_dd046(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
     for instr in dockerfile.instructions:
         if instr.directive == "FROM":
             _, end = _find_instruction_lines(lines, instr.line_number)
-            new_line = 'LABEL maintainer="TODO" description="TODO"'
+            new_line = 'LABEL maintainer="" description=""'
             lines.insert(end + 1, new_line)
             return Fix(rule_id="DD046", description="Added LABEL maintainer and description.",
                        insertions=[(end + 1, new_line)])

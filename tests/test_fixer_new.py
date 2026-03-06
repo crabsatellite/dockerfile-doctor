@@ -88,15 +88,16 @@ def test_dd015_no_fix_for_non_python():
 
 # ===== DD046 — No LABEL instructions =====
 
-def test_dd046_not_auto_fixed():
-    """DD046 (no LABEL) is reported but not auto-fixed — TODO placeholders are noisy."""
+def test_dd046_auto_fixed():
+    """DD046 (no LABEL) is reported and auto-fixed with LABEL after FROM."""
     content = "FROM python:3.12\nRUN pip install flask\n"
     df = parse(content)
     issues = analyze(df)
     assert any(i.rule_id == "DD046" for i in issues)
-    assert not any(i.rule_id == "DD046" and i.fix_available for i in issues)
+    assert any(i.rule_id == "DD046" and i.fix_available for i in issues)
     fixed, fixes = fix(df, issues)
-    assert not any(f.rule_id == "DD046" for f in fixes)
+    assert any(f.rule_id == "DD046" for f in fixes)
+    assert "LABEL" in fixed
 
 
 def test_dd046_no_fix_when_label_exists():

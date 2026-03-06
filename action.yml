@@ -138,6 +138,15 @@ runs:
 
         echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
 
+        # Count issues from JSON output
+        ISSUES_COUNT=$(dockerfile-doctor $INPUT_PATHS --format json --no-color 2>/dev/null | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('totals',{}).get('total',0))" 2>/dev/null || echo "0")
+        echo "issues-count=$ISSUES_COUNT" >> "$GITHUB_OUTPUT"
+
+        if [ "$INPUT_SCORE" == "true" ]; then
+          GRADE=$(dockerfile-doctor $INPUT_PATHS --score --no-color 2>/dev/null | grep -oP 'Grade: \K[A-F]' || echo "")
+          echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        fi
+
         if [ "$INPUT_FAIL_ON_ERROR" == "true" ] && [ "$EXIT_CODE" -ne 0 ]; then
           exit $EXIT_CODE
         fi

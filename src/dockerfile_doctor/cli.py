@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Optional, Sequence
@@ -184,6 +185,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    # --- Validate --diff ref ---
+    if args.diff and args.diff.startswith("-"):
+        _error(f"Invalid --diff ref: {args.diff!r} (must not start with '-')")
+        sys.exit(2)
+
     # --- Load configuration ---
     try:
         config = load_config(args.config)
@@ -223,6 +229,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     has_errors = False
 
     for filepath in dockerfiles:
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        try:
+            file_size = os.path.getsize(filepath)
+        except OSError:
+            file_size = 0
+        if file_size > MAX_FILE_SIZE:
+            _error(f"File too large ({file_size:,} bytes, max {MAX_FILE_SIZE:,}): {filepath}")
+            continue
+
         try:
             with open(filepath, encoding="utf-8") as fh:
                 content = fh.read()
@@ -260,6 +275,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 )
                 ar.fixes = fixes
                 if fixes:
+                    if os.path.islink(filepath):
+                        _error(f"Refusing to fix symlink: {filepath}")
+                        continue
                     with open(filepath, "w", encoding="utf-8") as fh:
                         fh.write(fixed_content)
             except Exception as exc:
