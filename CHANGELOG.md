@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-03-07
+
+### Fixed
+- Fix systemic stale-line-number bug: when DD005 (RUN combining) shrinks the lines
+  array in Phase 1, Phase 2 handlers now defer to the next convergence pass instead
+  of using stale indices. Fixes DD019 IndexError on Dockerfiles with consecutive RUN
+  instructions followed by CMD/ENTRYPOINT.
+
 ## [0.1.2] - 2026-03-07
 
 ### Fixed

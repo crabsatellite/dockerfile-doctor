@@ -104,6 +104,14 @@ def _fix_once(dockerfile: Dockerfile, issues: list[Issue]) -> tuple[str, list[Fi
         if result is not None:
             applied.append(result)
 
+    # If Phase 1 mutated lines (DD005 shrinks the array), skip Phase 2.
+    # The convergence loop will re-parse with correct line numbers next pass.
+    if applied:
+        fixed_content = "\n".join(lines[1:])
+        if dockerfile.raw_content.endswith("\n"):
+            fixed_content += "\n"
+        return fixed_content, applied
+
     # --- Phase 2: Apply single-line fixes, skipping consumed lines ---
     # Removal rules (DD013) must run before additive rules (DD003, DD004)
     # on the same line to avoid regex failures on modified text.
@@ -436,9 +444,23 @@ def _fix_dd019(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
         return None
     directive = instr.directive
     command = instr.arguments.strip()
-    # Detect leading indent from the raw line
+    # Find the actual line in the (possibly mutated) lines array by scanning
+    # for the directive, since earlier fixes (DD005) may have shifted indices.
+    target_idx = None
+    if issue.line_number < len(lines):
+        target_idx = issue.line_number
+    else:
+        # Line was shifted — scan for the directive
+        for idx in range(len(lines) - 1, 0, -1):
+            s = lines[idx].strip().upper()
+            if s.startswith(directive + " ") or s.startswith(directive + "\t") or s == directive:
+                target_idx = idx
+                break
+    if target_idx is None:
+        return None
+
     indent = ""
-    m = re.match(r"^(\s*)", lines[issue.line_number])
+    m = re.match(r"^(\s*)", lines[target_idx])
     if m:
         indent = m.group(1)
 
@@ -469,11 +491,11 @@ def _fix_dd019(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
             exec_form = "[" + ", ".join(f'"{ep}"' for ep in escaped_parts) + "]"
 
     fixed = f"{indent}{directive} {exec_form}"
-    _set_instruction(lines, issue.line_number, fixed)
+    _set_instruction(lines, target_idx, fixed)
     return Fix(
         rule_id="DD019",
         description=f"Converted {directive} to exec form.",
-        replacements=[(issue.line_number, full, fixed)],
+        replacements=[(target_idx, full, fixed)],
     )
 
 
