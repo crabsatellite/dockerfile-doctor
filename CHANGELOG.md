@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-03-07
+
+### Fixed
+- Fallback YAML parser now supports 2-level nesting for per-rule config overrides
+  (e.g. `rules: DD008: severity: error`). Only affected environments without PyYAML.
+
 ## [0.1.0] - 2026-03-07
 
 ### Added
