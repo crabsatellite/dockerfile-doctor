@@ -267,6 +267,20 @@ def _fix_dd004(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
     full = _get_full_instruction(lines, issue.line_number)
     if "rm -rf /var/lib/apt/lists" in full:
         return None
+    # Skip if a later RUN in the same stage also has apt-get install —
+    # adding cleanup here would break the subsequent install.
+    _apt_install_re = re.compile(r"apt(?:-get)?\s+install")
+    cur_stage = None
+    for instr in dockerfile.instructions:
+        if instr.line_number == issue.line_number:
+            cur_stage = instr.stage_index
+    if cur_stage is not None:
+        for instr in dockerfile.instructions:
+            if (instr.directive == "RUN"
+                    and instr.stage_index == cur_stage
+                    and instr.line_number > issue.line_number
+                    and _apt_install_re.search(instr.arguments)):
+                return None
     # Append cleanup at the end of the RUN instruction (handles apt and apt-get)
     # Remove trailing whitespace/backslash from last line, then append
     stripped = full.rstrip()

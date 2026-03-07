@@ -157,6 +157,54 @@ class TestFixerMultiline:
         assert len(dd004) >= 1
         assert "rm -rf /var/lib/apt/lists/*" in fixed
 
+    def test_dd004_skips_non_last_install_separate_runs(self):
+        """DD004 should skip cleanup when a later RUN also has apt-get install.
+
+        Regression: swingmusic pattern — adding rm lists after the first install
+        breaks the second install in a separate RUN layer.
+        """
+        content = (
+            "FROM python:3.12\n"
+            "RUN apt-get update\n"
+            "RUN apt-get install -y gcc libev-dev\n"
+            "RUN apt-get install -y ffmpeg\n"
+        )
+        fixed, issues, fixes = _analyze_and_fix(content)
+        dd004 = [f for f in fixes if f.rule_id == "DD004"]
+        # Only the LAST install should get cleanup, not the first
+        assert len(dd004) == 1
+        # The first install line should NOT have rm lists
+        lines = fixed.splitlines()
+        gcc_line = [l for l in lines if "gcc" in l]
+        assert gcc_line and "rm -rf" not in gcc_line[0]
+        # The last install line should have rm lists
+        assert "ffmpeg" in fixed
+        assert "rm -rf /var/lib/apt/lists/*" in fixed
+
+    def test_dd004_single_install_still_gets_cleanup(self):
+        """DD004 should still add cleanup when there's only one apt-get install."""
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y curl\n"
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd004 = [f for f in fixes if f.rule_id == "DD004"]
+        assert len(dd004) >= 1
+        assert "rm -rf /var/lib/apt/lists/*" in fixed
+
+    def test_dd004_separate_stages_independent(self):
+        """DD004 should treat installs in different stages independently."""
+        content = (
+            "FROM ubuntu:22.04 AS build\n"
+            "RUN apt-get update && apt-get install -y gcc\n"
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y curl\n"
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd004 = [f for f in fixes if f.rule_id == "DD004"]
+        # Both stages should get cleanup (each has only one install)
+        assert len(dd004) == 2
+
 
 # ===========================================================================
 # 2. Fixer with multi-stage builds (8+ tests)
