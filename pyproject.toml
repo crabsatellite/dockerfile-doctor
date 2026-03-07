@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dockerfile-doctor"
-version = "0.1.4"
+version = "0.1.5"
 description = "Lint, analyze, and auto-fix Dockerfiles for best practices, security, and performance"
 readme = "README.md"
 license = "Apache-2.0"
