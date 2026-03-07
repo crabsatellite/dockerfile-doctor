@@ -205,6 +205,81 @@ class TestFixerMultiline:
         # Both stages should get cleanup (each has only one install)
         assert len(dd004) == 2
 
+    def test_dd004_skips_when_child_stage_inherits(self):
+        """DD004 should skip cleanup when a child stage (FROM base) uses apt-get install.
+
+        Regression: maybe-finance pattern — base stage cleanup breaks child build stage.
+        """
+        content = (
+            "FROM ruby:3.4-slim AS base\n"
+            "RUN apt-get update -qq && apt-get install -y curl libvips\n"
+            "FROM base AS build\n"
+            "RUN apt-get install -y build-essential libpq-dev\n"
+            "FROM base\n"
+            "RUN rm -rf /var/lib/apt/lists/*\n"
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd004 = [f for f in fixes if f.rule_id == "DD004"]
+        # base stage (line 2) should NOT get cleanup (build inherits and uses apt-get install)
+        # build stage (line 4) MAY get cleanup — it's the last install in its stage
+        base_dd004 = [f for f in dd004 if any(ln == 2 for ln, _, _ in f.replacements)]
+        assert len(base_dd004) == 0
+
+    def test_dd026_multiline_apk_upgrade_no_dangling_backslash(self):
+        """DD026 should not leave dangling backslash after removing apk upgrade.
+
+        Regression: metabase pattern — apk upgrade in multiline RUN.
+        """
+        content = (
+            "FROM alpine:3.19\n"
+            "RUN apk add --no-cache bash curl && \\\n"
+            "    apk upgrade && \\\n"
+            "    rm -rf /var/cache/apk/*\n"
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd026 = [f for f in fixes if f.rule_id == "DD026"]
+        assert len(dd026) == 1
+        # Must not have dangling && \ before rm
+        assert "&& \\\n    && " not in fixed
+        # Must still have rm cleanup
+        assert "rm -rf /var/cache/apk/*" in fixed
+
+    def test_dd068_inserts_in_last_java_stage(self):
+        """DD068 should insert JAVA_OPTS in last Java stage, not first (builder).
+
+        Regression: metabase pattern — builder FROM node, runner FROM eclipse-temurin.
+        """
+        content = (
+            "FROM node:22 AS builder\n"
+            "RUN echo build\n"
+            "FROM eclipse-temurin:21-jre-alpine AS runner\n"
+            "RUN echo run\n"
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd068 = [f for f in fixes if f.rule_id == "DD068"]
+        if dd068:
+            # JAVA_OPTS must appear AFTER the runner FROM, not between stages
+            lines = fixed.splitlines()
+            java_opts_idx = next(i for i, l in enumerate(lines) if "JAVA_OPTS" in l)
+            runner_from_idx = next(i for i, l in enumerate(lines) if "eclipse-temurin" in l)
+            assert java_opts_idx > runner_from_idx
+
+    def test_dd041_skips_quoted_variable_paths(self):
+        """DD041 should not add / prefix to quoted variable destinations.
+
+        Regression: maybe-finance pattern — COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}".
+        """
+        content = (
+            'FROM ruby:3.4-slim\n'
+            'WORKDIR /rails\n'
+            'COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"\n'
+        )
+        fixed, _, fixes = _analyze_and_fix(content)
+        dd041 = [f for f in fixes if f.rule_id == "DD041"]
+        # Should NOT modify — destination is a variable (absolute at runtime)
+        assert len(dd041) == 0
+        assert '/"${BUNDLE_PATH}"' not in fixed
+
 
 # ===========================================================================
 # 2. Fixer with multi-stage builds (8+ tests)

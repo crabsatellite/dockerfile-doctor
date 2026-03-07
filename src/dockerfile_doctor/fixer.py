@@ -269,17 +269,26 @@ def _fix_dd004(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
     full = _get_full_instruction(lines, issue.line_number)
     if "rm -rf /var/lib/apt/lists" in full:
         return None
-    # Skip if a later RUN in the same stage also has apt-get install —
-    # adding cleanup here would break the subsequent install.
+    # Skip if a later RUN in the same stage OR a child stage (FROM <this_stage>)
+    # also has apt-get install — adding cleanup here would break it.
     _apt_install_re = re.compile(r"apt(?:-get)?\s+install")
-    cur_stage = None
+    cur_stage_idx = None
     for instr in dockerfile.instructions:
         if instr.line_number == issue.line_number:
-            cur_stage = instr.stage_index
-    if cur_stage is not None:
+            cur_stage_idx = instr.stage_index
+    if cur_stage_idx is not None:
+        # Collect stage indices that inherit from the current stage
+        cur_stage_name = None
+        if cur_stage_idx < len(dockerfile.stages):
+            cur_stage_name = dockerfile.stages[cur_stage_idx].name
+        related_stages = {cur_stage_idx}
+        if cur_stage_name:
+            for stg in dockerfile.stages:
+                if stg.base_image.lower() == cur_stage_name.lower():
+                    related_stages.add(stg.index)
         for instr in dockerfile.instructions:
             if (instr.directive == "RUN"
-                    and instr.stage_index == cur_stage
+                    and instr.stage_index in related_stages
                     and instr.line_number > issue.line_number
                     and _apt_install_re.search(instr.arguments)):
                 return None
@@ -699,13 +708,19 @@ def _fix_dd026(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
             description="Removed 'apk upgrade' RUN instruction.",
             deletions=[issue.line_number],
         )
-    # Part of chain: remove segment
-    fixed = re.sub(r"&&\s*apk\s+upgrade\s*(?=&&|$)", "", full)
+    # Part of chain: remove segment (handles multiline continuations)
+    fixed = re.sub(r"&&\s*\\\s*\n\s*apk\s+upgrade\s*", "", full)
+    fixed = re.sub(r"&&\s*apk\s+upgrade\s*(?=&&|\\|\s*$)", "", fixed)
     fixed = re.sub(r"apk\s+upgrade\s*&&\s*", "", fixed)
     fixed = re.sub(r"&&\s*&&", "&&", fixed)
+    # Clean up dangling continuation: line ending with && \<newline> then another &&
+    fixed = re.sub(r"&&\s*\\\s*\n\s*&&", "&&", fixed)
     fixed = fixed.rstrip()
     if fixed.rstrip().endswith("&&"):
         fixed = re.sub(r"\s*&&\s*$", "", fixed)
+    # Clean up trailing backslash on last line
+    if fixed.rstrip().endswith("\\"):
+        fixed = re.sub(r"\s*\\\s*$", "", fixed)
     if fixed == full:
         return None
     _set_instruction(lines, issue.line_number, fixed)
@@ -1059,7 +1074,9 @@ def _fix_dd041(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
     if len(parts) < 3:
         return None
     dest = parts[-1]
-    if dest.startswith('/') or dest.startswith('$'):
+    # Skip if already absolute, a variable, or quoted variable
+    stripped_dest = dest.strip('"').strip("'")
+    if dest.startswith('/') or dest.startswith('$') or stripped_dest.startswith('$'):
         return None
     # Don't rewrite dot-relative paths — these are relative to current WORKDIR
     # and prepending '/' would create nonsense like '/./app' or '/../other'
@@ -1377,15 +1394,24 @@ def _fix_dd046(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
 @_handler("DD068")
 def _fix_dd068(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Optional[Fix]:
     java_images = ("openjdk", "java", "eclipse-temurin", "amazoncorretto")
-    for instr in dockerfile.instructions:
-        if instr.directive == "FROM":
-            # Check if this FROM uses a Java base image
-            image = instr.arguments.split()[0] if instr.arguments.strip() else ""
+    # Find the LAST Java FROM in the mutable lines list (not stale instruction objects)
+    # to handle index shifts from earlier insertions in the same pass.
+    target_idx = None
+    _from_re = re.compile(r"^FROM\s+", re.IGNORECASE)
+    for idx in range(1, len(lines)):
+        line = lines[idx]
+        if _from_re.match(line):
+            image = line.split()[1] if len(line.split()) > 1 else ""
             basename = image.rsplit("/", 1)[-1].lower().split(":")[0]
             if basename in java_images:
-                _, end = _find_instruction_lines(lines, instr.line_number)
-                new_line = 'ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"'
-                lines.insert(end + 1, new_line)
-                return Fix(rule_id="DD068", description="Added JAVA_OPTS with container-aware flags.",
-                           insertions=[(end + 1, new_line)])
-    return None
+                target_idx = idx
+    if target_idx is None:
+        return None
+    # Find end of this instruction (handle continuations)
+    end = target_idx
+    while end < len(lines) - 1 and lines[end].rstrip().endswith("\\"):
+        end += 1
+    new_line = 'ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"'
+    lines.insert(end + 1, new_line)
+    return Fix(rule_id="DD068", description="Added JAVA_OPTS with container-aware flags.",
+               insertions=[(end + 1, new_line)])
