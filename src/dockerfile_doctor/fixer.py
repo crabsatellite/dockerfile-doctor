@@ -175,6 +175,8 @@ _RISKY_RULES: set[str] = {
     "DD015",  # Add PYTHONDONTWRITEBYTECODE etc. — changes Python runtime behavior
     "DD035",  # Add DEBIAN_FRONTEND=noninteractive — changes apt prompting behavior
     "DD046",  # Add LABEL instructions — adds metadata that may conflict with CI
+    "DD067",  # Add NODE_ENV=production — changes Node.js runtime behavior
+    "DD072",  # Remove TODO/FIXME comments — deletes developer notes
     "DD078",  # Add version LABEL — adds metadata
 }
 
