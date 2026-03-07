@@ -18,6 +18,7 @@ def fix(
     issues: list[Issue],
     *,
     exclude_rules: set[str] | None = None,
+    unsafe: bool = False,
 ) -> tuple[str, list[Fix]]:
     """Apply auto-fixes for fixable issues.
 
@@ -29,18 +30,25 @@ def fix(
 
     If *exclude_rules* is given, those rule IDs are never applied — even if
     the re-analysis in the convergence loop discovers them.
+
+    If *unsafe* is False (default), only safe fixes are applied — rules in
+    ``_RISKY_RULES`` are skipped.  Pass ``unsafe=True`` (``--unsafe-fixes``)
+    to include all fixes.
     """
     from .parser import parse as _parse
     from .rules import analyze as _analyze
 
-    _exclude = exclude_rules or set()
+    _exclude = set(exclude_rules or ())
+    if not unsafe:
+        _exclude |= _RISKY_RULES
 
     all_applied: list[Fix] = []
     current_df = dockerfile
     current_issues = issues
 
     for _ in range(3):  # converge in at most 3 passes
-        fixed_content, fixes = _fix_once(current_df, current_issues)
+        fixed_content, fixes = _fix_once(current_df, current_issues,
+                                         exclude_rules=_exclude)
         if not fixes:
             break
         all_applied.extend(fixes)
@@ -53,14 +61,20 @@ def fix(
     return current_df.raw_content, all_applied
 
 
-def _fix_once(dockerfile: Dockerfile, issues: list[Issue]) -> tuple[str, list[Fix]]:
+def _fix_once(
+    dockerfile: Dockerfile,
+    issues: list[Issue],
+    *,
+    exclude_rules: set[str] | None = None,
+) -> tuple[str, list[Fix]]:
     """Single pass of fix application.
 
     Multi-line fixes (DD005) are applied first to claim their line ranges,
     then single-line fixes are applied in reverse order, skipping any lines
     already consumed by multi-line fixes.
     """
-    fixable = [i for i in issues if i.fix_available]
+    _exclude = exclude_rules or set()
+    fixable = [i for i in issues if i.fix_available and i.rule_id not in _exclude]
     if not fixable:
         return dockerfile.raw_content, []
 
@@ -150,6 +164,19 @@ def _fix_once(dockerfile: Dockerfile, issues: list[Issue]) -> tuple[str, list[Fi
 # ---------------------------------------------------------------------------
 
 _FIX_HANDLERS: dict[str, Any] = {}
+
+# Rules whose auto-fix may change runtime behavior or break builds.
+# --fix skips these; --unsafe-fixes includes them.
+_RISKY_RULES: set[str] = {
+    "DD003",  # --no-install-recommends — may remove needed packages
+    "DD005",  # Combine consecutive RUN — changes layer caching
+    "DD008",  # Add USER instruction — may break permission-dependent workflows
+    "DD010",  # Pin base image digest — locks to specific build, blocks updates
+    "DD015",  # Add PYTHONDONTWRITEBYTECODE etc. — changes Python runtime behavior
+    "DD035",  # Add DEBIAN_FRONTEND=noninteractive — changes apt prompting behavior
+    "DD046",  # Add LABEL instructions — adds metadata that may conflict with CI
+    "DD078",  # Add version LABEL — adds metadata
+}
 
 
 def _handler(rule_id: str):

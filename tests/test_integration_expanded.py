@@ -12,10 +12,10 @@ from dockerfile_doctor.models import AnalysisResult
 from tests.conftest import has_rule, count_rule, get_issues_for_rule
 
 
-def _analyze_and_fix(content: str) -> tuple[str, list[Issue], list[Fix]]:
+def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Issue], list[Fix]]:
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues)
+    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
     return fixed_content, issues, fixes
 
 
@@ -933,7 +933,7 @@ CMD python app.py
 """
         df = parse(content)
         issues_before = analyze(df)
-        fixed, fixes = fix(df, issues_before)
+        fixed, fixes = fix(df, issues_before, unsafe=True)
         df2 = parse(fixed)
         issues_after = analyze(df2)
         # Fewer issues after fix
@@ -948,7 +948,7 @@ CMD ["echo", "hello"]
 """
         df = parse(content)
         issues_before = analyze(df)
-        fixed, fixes = fix(df, issues_before)
+        fixed, fixes = fix(df, issues_before, unsafe=True)
         df2 = parse(fixed)
         issues_after = analyze(df2)
 
@@ -1057,7 +1057,7 @@ CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
 """
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues)
+        _, fixes = fix(df, issues, unsafe=True)
         # Most fixable rules should not fire on a clean Dockerfile
         # (some unfixable rules may still fire)
         fixable_issues = [i for i in issues if i.fix_available]

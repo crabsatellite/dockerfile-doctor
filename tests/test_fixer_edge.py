@@ -7,10 +7,10 @@ from dockerfile_doctor.fixer import fix
 from dockerfile_doctor.models import Issue, Fix, Severity, Category
 
 
-def _analyze_and_fix(content: str) -> tuple[str, list[Issue], list[Fix]]:
+def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Issue], list[Fix]]:
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues)
+    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
     return fixed_content, issues, fixes
 
 

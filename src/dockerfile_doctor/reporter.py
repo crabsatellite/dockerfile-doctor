@@ -157,6 +157,18 @@ def _format_text(
                 lines.append(
                     f"  {c.GREEN}{nfixed} fix{'es' if nfixed != 1 else ''} applied{c.RESET}"
                 )
+                # Hint about skipped risky fixes
+                from .fixer import _RISKY_RULES
+                risky_remaining = sum(
+                    1 for i in result.issues
+                    if i.fix_available and i.rule_id in _RISKY_RULES
+                    and not any(f.rule_id == i.rule_id for f in result.fixes)
+                )
+                if risky_remaining:
+                    lines.append(
+                        f"  {c.YELLOW}{risky_remaining} unsafe fix{'es' if risky_remaining != 1 else ''} skipped{c.RESET}"
+                        f" (use {c.BOLD}--unsafe-fixes{c.RESET} to include)"
+                    )
             elif fixable:
                 lines.append(
                     f"  {c.GREEN}{fixable} auto-fixable issue{'s' if fixable != 1 else ''}{c.RESET}"

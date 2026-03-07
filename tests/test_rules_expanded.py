@@ -1316,7 +1316,7 @@ class TestNewFixers:
         from dockerfile_doctor.fixer import fix
         df = parse(content)
         issues = analyze(df)
-        fixed_content, fixes = fix(df, issues)
+        fixed_content, fixes = fix(df, issues, unsafe=True)
         return fixed_content, fixes
 
     def test_fix_dd021_removes_sudo(self):
@@ -1499,7 +1499,7 @@ class TestNewFixerIdempotency:
         from dockerfile_doctor.fixer import fix
         df = parse(content)
         issues = analyze(df)
-        fixed_content, _ = fix(df, issues)
+        fixed_content, _ = fix(df, issues, unsafe=True)
         return fixed_content
 
     def test_dd031_idempotent(self):

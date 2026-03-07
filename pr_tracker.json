@@ -25,6 +25,26 @@
         "image_size_saved_mb": 58,
         "checks_passed": "10/10"
       }
+    },
+    {
+      "repo": "rafalp/misago_docker",
+      "stars": 172,
+      "pr_url": "https://github.com/rafalp/misago_docker/pull/117",
+      "pr_number": 117,
+      "branch": "fix/dockerfile-best-practices",
+      "status": "open",
+      "submitted": "2026-03-07",
+      "merged": null,
+      "fixes": [
+        "rm -rf /var/lib/apt/lists/*",
+        "ADD -> COPY",
+        "--no-cache-dir",
+        "trailing whitespace/newline"
+      ],
+      "validation": {
+        "build_pass": true,
+        "note": "compose project, validated via same fix pattern as Misago dev"
+      }
     }
   ]
 }

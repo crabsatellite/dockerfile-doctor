@@ -26,11 +26,11 @@ from dockerfile_doctor.rules import analyze
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _full_pipeline(content: str) -> tuple[str, list]:
+def _full_pipeline(content: str, *, unsafe: bool = True) -> tuple[str, list]:
     """Parse -> analyze -> fix, return (fixed_content, applied_fixes)."""
     df = parse(content)
     issues = analyze(df)
-    return fix(df, issues)
+    return fix(df, issues, unsafe=unsafe)
 
 
 def _fix_and_refix(content: str):
@@ -740,7 +740,7 @@ class TestFixerSemanticInvariants:
         issues = analyze(df)
         fixable_before = sum(1 for i in issues if i.fix_available)
 
-        fixed, fixes = fix(df, issues)
+        fixed, fixes = fix(df, issues, unsafe=True)
         df2 = parse(fixed)
         issues2 = analyze(df2)
         fixable_after = sum(1 for i in issues2 if i.fix_available)
@@ -1049,7 +1049,7 @@ class TestCrossReviewAdversarial:
         content = "FROM alpine:3.19\nRUN echo hello \\"
         df = parse(content)
         issues = analyze(df)
-        fixed, fixes = fix(df, issues)
+        fixed, fixes = fix(df, issues, unsafe=True)
         assert isinstance(fixed, str)
 
     def test_out_of_bounds_line_number(self):

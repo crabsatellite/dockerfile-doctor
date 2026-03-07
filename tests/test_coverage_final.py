@@ -245,7 +245,7 @@ class TestFixerDD005Dedup:
             severity=Severity.WARNING, category=Category.PERFORMANCE,
             line_number=2, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue1, issue2])
+        fixed_content, fixes = fix(df, [issue1, issue2], unsafe=True)
         # Should only apply once (the duplicate is skipped at line 76)
         dd005_fixes = [f for f in fixes if f.rule_id == "DD005"]
         assert len(dd005_fixes) <= 1
@@ -261,7 +261,7 @@ class TestFixerDD004TrailingBackslash:
         issues = analyze(df)
         dd004 = [i for i in issues if i.rule_id == "DD004"]
         if dd004:
-            fixed_content, fixes = fix(df, dd004)
+            fixed_content, fixes = fix(df, dd004, unsafe=True)
             assert "rm -rf /var/lib/apt/lists" in fixed_content
 
 
@@ -275,7 +275,7 @@ class TestFixerDD031TrailingBackslash:
         issues = analyze(df)
         dd031 = [i for i in issues if i.rule_id == "DD031"]
         if dd031:
-            fixed_content, fixes = fix(df, dd031)
+            fixed_content, fixes = fix(df, dd031, unsafe=True)
             assert "yum clean all" in fixed_content
         else:
             # Manually invoke fixer
@@ -284,7 +284,7 @@ class TestFixerDD031TrailingBackslash:
                 severity=Severity.WARNING, category=Category.PERFORMANCE,
                 line_number=2, fix_available=True,
             )
-            fixed_content, fixes = fix(df, [issue])
+            fixed_content, fixes = fix(df, [issue], unsafe=True)
             assert "yum clean all" in fixed_content
 
 
@@ -298,7 +298,7 @@ class TestFixerDD033TrailingBackslash:
         issues = analyze(df)
         dd033 = [i for i in issues if i.rule_id == "DD033"]
         if dd033:
-            fixed_content, fixes = fix(df, dd033)
+            fixed_content, fixes = fix(df, dd033, unsafe=True)
             assert "dnf clean all" in fixed_content
         else:
             issue = Issue(
@@ -306,7 +306,7 @@ class TestFixerDD033TrailingBackslash:
                 severity=Severity.WARNING, category=Category.PERFORMANCE,
                 line_number=2, fix_available=True,
             )
-            fixed_content, fixes = fix(df, [issue])
+            fixed_content, fixes = fix(df, [issue], unsafe=True)
             assert "dnf clean all" in fixed_content
 
 
@@ -320,7 +320,7 @@ class TestFixerDD034TrailingBackslash:
         issues = analyze(df)
         dd034 = [i for i in issues if i.rule_id == "DD034"]
         if dd034:
-            fixed_content, fixes = fix(df, dd034)
+            fixed_content, fixes = fix(df, dd034, unsafe=True)
             assert "zypper clean" in fixed_content
         else:
             issue = Issue(
@@ -328,7 +328,7 @@ class TestFixerDD034TrailingBackslash:
                 severity=Severity.WARNING, category=Category.PERFORMANCE,
                 line_number=2, fix_available=True,
             )
-            fixed_content, fixes = fix(df, [issue])
+            fixed_content, fixes = fix(df, [issue], unsafe=True)
             assert "zypper clean" in fixed_content
 
 
@@ -342,7 +342,7 @@ class TestFixerDD011RelativeWorkdir:
         issues = analyze(df)
         dd011 = [i for i in issues if i.rule_id == "DD011"]
         if dd011:
-            fixed_content, fixes = fix(df, dd011)
+            fixed_content, fixes = fix(df, dd011, unsafe=True)
             assert "WORKDIR /app" in fixed_content
         else:
             # Manually create issue
@@ -351,7 +351,7 @@ class TestFixerDD011RelativeWorkdir:
                 severity=Severity.WARNING, category=Category.BEST_PRACTICE,
                 line_number=2, fix_available=True,
             )
-            fixed_content, fixes = fix(df, [issue])
+            fixed_content, fixes = fix(df, [issue], unsafe=True)
             assert "WORKDIR /app" in fixed_content
 
 
@@ -367,7 +367,7 @@ class TestFixerDD008EdgeCases:
             severity=Severity.WARNING, category=Category.SECURITY,
             line_number=2, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd008_fixes = [f for f in fixes if f.rule_id == "DD008"]
         assert len(dd008_fixes) == 0
 
@@ -380,7 +380,7 @@ class TestFixerDD008EdgeCases:
             severity=Severity.WARNING, category=Category.SECURITY,
             line_number=0, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd008_fixes = [f for f in fixes if f.rule_id == "DD008"]
         assert len(dd008_fixes) == 0
 
@@ -397,7 +397,7 @@ class TestFixerDD015NoFrom:
             severity=Severity.INFO, category=Category.PERFORMANCE,
             line_number=0, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd015_fixes = [f for f in fixes if f.rule_id == "DD015"]
         assert len(dd015_fixes) == 0
 
@@ -414,7 +414,7 @@ class TestFixerDD046NoFrom:
             severity=Severity.INFO, category=Category.MAINTAINABILITY,
             line_number=0, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd046_fixes = [f for f in fixes if f.rule_id == "DD046"]
         assert len(dd046_fixes) == 0
 
@@ -431,7 +431,7 @@ class TestFixerDD068NonJava:
             severity=Severity.INFO, category=Category.PERFORMANCE,
             line_number=0, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd068_fixes = [f for f in fixes if f.rule_id == "DD068"]
         assert len(dd068_fixes) == 0
 
@@ -444,7 +444,7 @@ class TestFixerDD068NonJava:
             severity=Severity.INFO, category=Category.PERFORMANCE,
             line_number=0, fix_available=True,
         )
-        fixed_content, fixes = fix(df, [issue])
+        fixed_content, fixes = fix(df, [issue], unsafe=True)
         dd068_fixes = [f for f in fixes if f.rule_id == "DD068"]
         assert len(dd068_fixes) == 1
         assert "JAVA_OPTS" in fixed_content

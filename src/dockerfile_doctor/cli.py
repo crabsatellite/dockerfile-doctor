@@ -71,7 +71,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "-f", "--fix",
         action="store_true",
         default=False,
-        help="Auto-fix issues where possible",
+        help="Auto-fix safe issues (use --unsafe-fixes to include risky changes)",
+    )
+
+    parser.add_argument(
+        "--unsafe-fixes",
+        action="store_true",
+        default=False,
+        help="Include risky fixes that may change runtime behavior (e.g., --no-install-recommends, combining RUN layers)",
     )
 
     parser.add_argument(
@@ -267,11 +274,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ar = _filter_issues(ar, min_severity=min_severity, ignore=ignore_list)
 
         # Optionally apply fixes (only on filtered issues)
-        if args.fix:
+        if args.fix or args.unsafe_fixes:
             try:
                 excluded = {i.rule_id for i in issues} - {i.rule_id for i in ar.issues}
                 fixed_content, fixes = apply_fixes(
-                    dockerfile, ar.issues, exclude_rules=excluded or None,
+                    dockerfile, ar.issues,
+                    exclude_rules=excluded or None,
+                    unsafe=args.unsafe_fixes,
                 )
                 ar.fixes = fixes
                 if fixes:

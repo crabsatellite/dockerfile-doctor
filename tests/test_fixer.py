@@ -14,11 +14,11 @@ from dockerfile_doctor.models import Issue, Fix, Severity, Category
 # Helper
 # ---------------------------------------------------------------------------
 
-def _analyze_and_fix(content: str) -> tuple[str, list[Issue], list[Fix]]:
+def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Issue], list[Fix]]:
     """Return (fixed_content, issues, fixes) for inspection."""
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues)
+    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
     return fixed_content, issues, fixes
 
 
@@ -117,7 +117,7 @@ class TestNonFixableRules:
         content = "FROM ubuntu:22.04\nCMD [\"bash\"]\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues)
+        _, fixes = fix(df, issues, unsafe=True)
         dd008_fixes = [f for f in fixes if f.rule_id == "DD008"]
         assert len(dd008_fixes) == 1
 
@@ -126,7 +126,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nENV password=secret123\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues)
+        _, fixes = fix(df, issues, unsafe=True)
         dd020_fixes = [f for f in fixes if f.rule_id == "DD020"]
         assert len(dd020_fixes) == 0
 
@@ -135,7 +135,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nCMD [\"sh\"]\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues)
+        _, fixes = fix(df, issues, unsafe=True)
         dd012_fixes = [f for f in fixes if f.rule_id == "DD012"]
         assert len(dd012_fixes) == 0
 
@@ -144,7 +144,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nEXPOSE 23\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues)
+        _, fixes = fix(df, issues, unsafe=True)
         dd014_fixes = [f for f in fixes if f.rule_id == "DD014"]
         assert len(dd014_fixes) == 0
 
@@ -232,7 +232,7 @@ class TestSyntaxPreservation:
         issues = analyze(df)
         fixable_issues = [i for i in issues if i.fix_available]
         if not fixable_issues:
-            fixed_content, fixes = fix(df, issues)
+            fixed_content, fixes = fix(df, issues, unsafe=True)
             # No fixable issues means content should be unchanged
             assert len(fixes) == 0
 
