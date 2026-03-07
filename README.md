@@ -26,7 +26,7 @@ Dockerfile: ./Dockerfile
 
 Every Dockerfile linter tells you what's wrong. None of them fix it for you.
 
-Dockerfile Doctor is a **lint-and-fix** tool: run `dockerfile-doctor --fix` and 51 rules are applied automatically — cache cleanup, security hardening, exec-form conversion, layer consolidation, and more. No manual edits, no copy-pasting from Stack Overflow.
+Dockerfile Doctor is a **lint-and-fix** tool: run `dockerfile-doctor --fix` and safe fixes are applied automatically — cache cleanup, exec-form conversion, trailing whitespace, and more. For risky changes that may alter runtime behavior (like `--no-install-recommends` or RUN combining), use `--unsafe-fixes`. No manual edits, no copy-pasting from Stack Overflow.
 
 - **51 deterministic auto-fixers** that rewrite your Dockerfile correctly.
 - **80 rules** covering security, performance, correctness, and maintainability.
@@ -69,8 +69,11 @@ pip install -e .
 # Lint a Dockerfile
 dockerfile-doctor Dockerfile
 
-# Auto-fix issues
+# Auto-fix safe issues (cache cleanup, COPY, exec-form, etc.)
 dockerfile-doctor --fix Dockerfile
+
+# Include risky fixes (--no-install-recommends, RUN combining, USER, etc.)
+dockerfile-doctor --unsafe-fixes Dockerfile
 
 # Scan a directory
 dockerfile-doctor ./services/
@@ -254,7 +257,7 @@ rules:
 ```yaml
 repos:
   - repo: https://github.com/crabsatellite/dockerfile-doctor
-    rev: v0.1.0
+    rev: v0.1.4
     hooks:
       - id: dockerfile-doctor
         args: [--severity, warning]
@@ -269,14 +272,15 @@ from dockerfile_doctor.fixer import fix
 
 dockerfile = parse(open("Dockerfile").read())
 issues = analyze(dockerfile)
-fixed_content, applied = fix(dockerfile, issues)
+fixed_content, applied = fix(dockerfile, issues)  # safe fixes only
+fixed_content, applied = fix(dockerfile, issues, unsafe=True)  # all fixes
 ```
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest  # 1400+ tests, 99% coverage
+pytest
 ```
 
 ## License
