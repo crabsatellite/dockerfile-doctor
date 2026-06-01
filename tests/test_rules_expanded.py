@@ -9,7 +9,7 @@ from tests.conftest import has_rule, count_rule, get_issues_for_rule
 
 
 # ===========================================================================
-# DD021 — Do not use sudo
+# DD021 鈥?Do not use sudo
 # ===========================================================================
 
 class TestDD021Sudo:
@@ -35,7 +35,7 @@ class TestDD021Sudo:
 
 
 # ===========================================================================
-# DD022 — Pin versions in apt-get install
+# DD022 鈥?Pin versions in apt-get install
 # ===========================================================================
 
 class TestDD022AptPin:
@@ -56,7 +56,7 @@ class TestDD022AptPin:
 
 
 # ===========================================================================
-# DD023 — Missing -y in apt-get install
+# DD023 鈥?Missing -y in apt-get install
 # ===========================================================================
 
 class TestDD023AptYes:
@@ -87,7 +87,7 @@ class TestDD023AptYes:
 
 
 # ===========================================================================
-# DD024 — Use apt-get instead of apt
+# DD024 鈥?Use apt-get instead of apt
 # ===========================================================================
 
 class TestDD024UseAptGet:
@@ -113,7 +113,7 @@ class TestDD024UseAptGet:
 
 
 # ===========================================================================
-# DD025 — apk add without --no-cache
+# DD025 鈥?apk add without --no-cache
 # ===========================================================================
 
 class TestDD025ApkNoCache:
@@ -134,7 +134,7 @@ class TestDD025ApkNoCache:
 
 
 # ===========================================================================
-# DD026 — apk upgrade
+# DD026 鈥?apk upgrade
 # ===========================================================================
 
 class TestDD026ApkUpgrade:
@@ -150,7 +150,7 @@ class TestDD026ApkUpgrade:
 
 
 # ===========================================================================
-# DD027 — Pin versions in apk add
+# DD027 鈥?Pin versions in apk add
 # ===========================================================================
 
 class TestDD027ApkPin:
@@ -166,7 +166,7 @@ class TestDD027ApkPin:
 
 
 # ===========================================================================
-# DD028 — Pin versions in pip install
+# DD028 鈥?Pin versions in pip install
 # ===========================================================================
 
 class TestDD028PipPin:
@@ -192,7 +192,7 @@ class TestDD028PipPin:
 
 
 # ===========================================================================
-# DD029 — Pin versions in npm install
+# DD029 鈥?Pin versions in npm install
 # ===========================================================================
 
 class TestDD029NpmPin:
@@ -208,7 +208,7 @@ class TestDD029NpmPin:
 
 
 # ===========================================================================
-# DD030 — Pin versions in gem install
+# DD030 鈥?Pin versions in gem install
 # ===========================================================================
 
 class TestDD030GemPin:
@@ -229,7 +229,7 @@ class TestDD030GemPin:
 
 
 # ===========================================================================
-# DD031 — yum install without clean
+# DD031 鈥?yum install without clean
 # ===========================================================================
 
 class TestDD031YumClean:
@@ -245,7 +245,7 @@ class TestDD031YumClean:
 
 
 # ===========================================================================
-# DD032 — Pin versions in yum install
+# DD032 鈥?Pin versions in yum install
 # ===========================================================================
 
 class TestDD032YumPin:
@@ -261,7 +261,7 @@ class TestDD032YumPin:
 
 
 # ===========================================================================
-# DD033 — dnf install without clean
+# DD033 鈥?dnf install without clean
 # ===========================================================================
 
 class TestDD033DnfClean:
@@ -277,7 +277,7 @@ class TestDD033DnfClean:
 
 
 # ===========================================================================
-# DD034 — zypper install without clean
+# DD034 鈥?zypper install without clean
 # ===========================================================================
 
 class TestDD034ZypperClean:
@@ -293,7 +293,7 @@ class TestDD034ZypperClean:
 
 
 # ===========================================================================
-# DD035 — Missing DEBIAN_FRONTEND
+# DD035 鈥?Missing DEBIAN_FRONTEND
 # ===========================================================================
 
 class TestDD035DebianFrontend:
@@ -329,7 +329,7 @@ class TestDD035DebianFrontend:
 
 
 # ===========================================================================
-# DD036 — Multiple CMD instructions
+# DD036 鈥?Multiple CMD instructions
 # ===========================================================================
 
 class TestDD036MultipleCMD:
@@ -355,7 +355,7 @@ class TestDD036MultipleCMD:
 
 
 # ===========================================================================
-# DD037 — Multiple ENTRYPOINT instructions
+# DD037 鈥?Multiple ENTRYPOINT instructions
 # ===========================================================================
 
 class TestDD037MultipleEntrypoint:
@@ -376,7 +376,7 @@ class TestDD037MultipleEntrypoint:
 
 
 # ===========================================================================
-# DD038 — Invalid UNIX port number
+# DD038 鈥?Invalid UNIX port number
 # ===========================================================================
 
 class TestDD038InvalidPort:
@@ -402,7 +402,7 @@ class TestDD038InvalidPort:
 
 
 # ===========================================================================
-# DD039 — COPY --from unknown stage
+# DD039 鈥?COPY --from unknown stage
 # ===========================================================================
 
 class TestDD039CopyFromUnknown:
@@ -423,7 +423,7 @@ class TestDD039CopyFromUnknown:
 
 
 # ===========================================================================
-# DD040 — Missing pipefail
+# DD040 鈥?Missing pipefail
 # ===========================================================================
 
 class TestDD040Pipefail:
@@ -454,7 +454,7 @@ class TestDD040Pipefail:
 
 
 # ===========================================================================
-# DD041 — COPY to relative dest without WORKDIR
+# DD041 鈥?COPY to relative dest without WORKDIR
 # ===========================================================================
 
 class TestDD041CopyRelative:
@@ -475,7 +475,7 @@ class TestDD041CopyRelative:
 
 
 # ===========================================================================
-# DD042 — ONBUILD instruction
+# DD042 鈥?ONBUILD instruction
 # ===========================================================================
 
 class TestDD042Onbuild:
@@ -491,7 +491,7 @@ class TestDD042Onbuild:
 
 
 # ===========================================================================
-# DD043 — SHELL exec form
+# DD043 鈥?SHELL exec form
 # ===========================================================================
 
 class TestDD043ShellExecForm:
@@ -507,7 +507,7 @@ class TestDD043ShellExecForm:
 
 
 # ===========================================================================
-# DD044 — Duplicate ENV keys
+# DD044 鈥?Duplicate ENV keys
 # ===========================================================================
 
 class TestDD044DuplicateEnv:
@@ -528,7 +528,7 @@ class TestDD044DuplicateEnv:
 
 
 # ===========================================================================
-# DD045 — RUN with cd
+# DD045 鈥?RUN with cd
 # ===========================================================================
 
 class TestDD045RunCd:
@@ -549,7 +549,7 @@ class TestDD045RunCd:
 
 
 # ===========================================================================
-# DD046 — Missing LABEL
+# DD046 鈥?Missing LABEL
 # ===========================================================================
 
 class TestDD046MissingLabel:
@@ -565,7 +565,7 @@ class TestDD046MissingLabel:
 
 
 # ===========================================================================
-# DD047 — Empty RUN
+# DD047 鈥?Empty RUN
 # ===========================================================================
 
 class TestDD047EmptyRun:
@@ -581,7 +581,7 @@ class TestDD047EmptyRun:
 
 
 # ===========================================================================
-# DD048 — Duplicate EXPOSE ports
+# DD048 鈥?Duplicate EXPOSE ports
 # ===========================================================================
 
 class TestDD048DuplicateExpose:
@@ -597,7 +597,7 @@ class TestDD048DuplicateExpose:
 
 
 # ===========================================================================
-# DD049 — Multiple HEALTHCHECK
+# DD049 鈥?Multiple HEALTHCHECK
 # ===========================================================================
 
 class TestDD049MultipleHealthcheck:
@@ -613,7 +613,7 @@ class TestDD049MultipleHealthcheck:
 
 
 # ===========================================================================
-# DD050 — Stage name casing
+# DD050 鈥?Stage name casing
 # ===========================================================================
 
 class TestDD050StageName:
@@ -629,7 +629,7 @@ class TestDD050StageName:
 
 
 # ===========================================================================
-# DD051 — chmod 777
+# DD051 鈥?chmod 777
 # ===========================================================================
 
 class TestDD051Chmod777:
@@ -645,7 +645,7 @@ class TestDD051Chmod777:
 
 
 # ===========================================================================
-# DD052 — SSH keys / .git in COPY
+# DD052 鈥?SSH keys / .git in COPY
 # ===========================================================================
 
 class TestDD052SshGitCopy:
@@ -671,7 +671,7 @@ class TestDD052SshGitCopy:
 
 
 # ===========================================================================
-# DD053 — .env file in COPY
+# DD053 鈥?.env file in COPY
 # ===========================================================================
 
 class TestDD053EnvFile:
@@ -692,7 +692,7 @@ class TestDD053EnvFile:
 
 
 # ===========================================================================
-# DD054 — curl | bash
+# DD054 鈥?curl | bash
 # ===========================================================================
 
 class TestDD054CurlPipeBash:
@@ -718,7 +718,7 @@ class TestDD054CurlPipeBash:
 
 
 # ===========================================================================
-# DD055 — wget --no-check-certificate
+# DD055 鈥?wget --no-check-certificate
 # ===========================================================================
 
 class TestDD055WgetNoCheck:
@@ -734,7 +734,7 @@ class TestDD055WgetNoCheck:
 
 
 # ===========================================================================
-# DD056 — curl -k / --insecure
+# DD056 鈥?curl -k / --insecure
 # ===========================================================================
 
 class TestDD056CurlInsecure:
@@ -755,7 +755,7 @@ class TestDD056CurlInsecure:
 
 
 # ===========================================================================
-# DD057 — git clone with credentials
+# DD057 鈥?git clone with credentials
 # ===========================================================================
 
 class TestDD057GitCredentials:
@@ -776,7 +776,7 @@ class TestDD057GitCredentials:
 
 
 # ===========================================================================
-# DD058 — Hardcoded credentials in RUN
+# DD058 鈥?Hardcoded credentials in RUN
 # ===========================================================================
 
 class TestDD058HardcodedRunSecret:
@@ -797,7 +797,7 @@ class TestDD058HardcodedRunSecret:
 
 
 # ===========================================================================
-# DD059 — ADD from remote URL
+# DD059 鈥?ADD from remote URL
 # ===========================================================================
 
 class TestDD059AddRemoteUrl:
@@ -813,7 +813,7 @@ class TestDD059AddRemoteUrl:
 
 
 # ===========================================================================
-# DD060 — --privileged in RUN
+# DD060 鈥?--privileged in RUN
 # ===========================================================================
 
 class TestDD060Privileged:
@@ -829,7 +829,7 @@ class TestDD060Privileged:
 
 
 # ===========================================================================
-# DD061 — gem install without --no-document
+# DD061 鈥?gem install without --no-document
 # ===========================================================================
 
 class TestDD061GemNoDocument:
@@ -850,7 +850,7 @@ class TestDD061GemNoDocument:
 
 
 # ===========================================================================
-# DD062 — go build without CGO_ENABLED=0
+# DD062 鈥?go build without CGO_ENABLED=0
 # ===========================================================================
 
 class TestDD062GoCgo:
@@ -876,7 +876,7 @@ class TestDD062GoCgo:
 
 
 # ===========================================================================
-# DD063 — apk add dev packages without --virtual
+# DD063 鈥?apk add dev packages without --virtual
 # ===========================================================================
 
 class TestDD063ApkVirtual:
@@ -897,7 +897,7 @@ class TestDD063ApkVirtual:
 
 
 # ===========================================================================
-# DD064 — Too many layers
+# DD064 鈥?Too many layers
 # ===========================================================================
 
 class TestDD064TooManyLayers:
@@ -914,7 +914,7 @@ class TestDD064TooManyLayers:
 
 
 # ===========================================================================
-# DD065 — Duplicate RUN commands
+# DD065 鈥?Duplicate RUN commands
 # ===========================================================================
 
 class TestDD065DuplicateRun:
@@ -930,7 +930,7 @@ class TestDD065DuplicateRun:
 
 
 # ===========================================================================
-# DD066 — Multi-stage without COPY --from
+# DD066 鈥?Multi-stage without COPY --from
 # ===========================================================================
 
 class TestDD066MultistageNoCopy:
@@ -951,7 +951,7 @@ class TestDD066MultistageNoCopy:
 
 
 # ===========================================================================
-# DD067 — Node.js without NODE_ENV
+# DD067 鈥?Node.js without NODE_ENV
 # ===========================================================================
 
 class TestDD067NodeEnv:
@@ -972,7 +972,7 @@ class TestDD067NodeEnv:
 
 
 # ===========================================================================
-# DD068 — Java container flags
+# DD068 鈥?Java container flags
 # ===========================================================================
 
 class TestDD068JavaFlags:
@@ -998,7 +998,7 @@ class TestDD068JavaFlags:
 
 
 # ===========================================================================
-# DD069 — apt-get install with wildcard
+# DD069 鈥?apt-get install with wildcard
 # ===========================================================================
 
 class TestDD069AptWildcard:
@@ -1014,7 +1014,7 @@ class TestDD069AptWildcard:
 
 
 # ===========================================================================
-# DD070 — Copying entire build context
+# DD070 鈥?Copying entire build context
 # ===========================================================================
 
 class TestDD070DockerignoreHint:
@@ -1030,7 +1030,7 @@ class TestDD070DockerignoreHint:
 
 
 # ===========================================================================
-# DD071 — Instruction casing
+# DD071 鈥?Instruction casing
 # ===========================================================================
 
 class TestDD071InstructionCasing:
@@ -1056,7 +1056,7 @@ class TestDD071InstructionCasing:
 
 
 # ===========================================================================
-# DD072 — TODO/FIXME comments
+# DD072 鈥?TODO/FIXME comments
 # ===========================================================================
 
 class TestDD072TodoFixme:
@@ -1082,7 +1082,7 @@ class TestDD072TodoFixme:
 
 
 # ===========================================================================
-# DD073 — Missing final newline
+# DD073 鈥?Missing final newline
 # ===========================================================================
 
 class TestDD073FinalNewline:
@@ -1103,7 +1103,7 @@ class TestDD073FinalNewline:
 
 
 # ===========================================================================
-# DD074 — Very long RUN line
+# DD074 鈥?Very long RUN line
 # ===========================================================================
 
 class TestDD074LongRun:
@@ -1126,7 +1126,7 @@ class TestDD074LongRun:
 
 
 # ===========================================================================
-# DD075 — Trailing whitespace
+# DD075 鈥?Trailing whitespace
 # ===========================================================================
 
 class TestDD075TrailingWhitespace:
@@ -1147,7 +1147,7 @@ class TestDD075TrailingWhitespace:
 
 
 # ===========================================================================
-# DD076 — Empty continuation line
+# DD076 鈥?Empty continuation line
 # ===========================================================================
 
 class TestDD076EmptyContinuation:
@@ -1163,7 +1163,7 @@ class TestDD076EmptyContinuation:
 
 
 # ===========================================================================
-# DD077 — Deprecated base image
+# DD077 鈥?Deprecated base image
 # ===========================================================================
 
 class TestDD077DeprecatedImage:
@@ -1194,7 +1194,7 @@ class TestDD077DeprecatedImage:
 
 
 # ===========================================================================
-# DD078 — Missing version LABEL
+# DD078 鈥?Missing version LABEL
 # ===========================================================================
 
 class TestDD078LabelVersion:
@@ -1216,7 +1216,7 @@ class TestDD078LabelVersion:
 
 
 # ===========================================================================
-# DD079 — Invalid STOPSIGNAL
+# DD079 鈥?Invalid STOPSIGNAL
 # ===========================================================================
 
 class TestDD079StopSignal:
@@ -1242,7 +1242,7 @@ class TestDD079StopSignal:
 
 
 # ===========================================================================
-# DD080 — VOLUME JSON syntax
+# DD080 鈥?VOLUME JSON syntax
 # ===========================================================================
 
 class TestDD080VolumeSyntax:
@@ -1313,10 +1313,10 @@ class TestNewRuleCrossInteractions:
 
 class TestNewFixers:
     def _fix(self, content):
-        from dockerfile_doctor.fixer import fix
+        from dockerfile_doctor.fixer import _fix_with_review_only
         df = parse(content)
         issues = analyze(df)
-        fixed_content, fixes = fix(df, issues, unsafe=True)
+        fixed_content, fixes = _fix_with_review_only(df, issues)
         return fixed_content, fixes
 
     def test_fix_dd021_removes_sudo(self):
@@ -1496,10 +1496,10 @@ class TestNewFixers:
 
 class TestNewFixerIdempotency:
     def _fix(self, content):
-        from dockerfile_doctor.fixer import fix
+        from dockerfile_doctor.fixer import _fix_with_review_only
         df = parse(content)
         issues = analyze(df)
-        fixed_content, _ = fix(df, issues, unsafe=True)
+        fixed_content, _ = _fix_with_review_only(df, issues)
         return fixed_content
 
     def test_dd031_idempotent(self):

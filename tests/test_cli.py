@@ -78,6 +78,22 @@ class TestFixMode:
         _run_cli(["--fix", str(path)])
         assert path.read_text(encoding="utf-8") == content
 
+    def test_unsafe_fixes_flag_deprecated_safe_fallback(self, tmp_dockerfile, capsys):
+        content = (
+            "FROM ubuntu:22.04\n"
+            "MAINTAINER dev@example.com\n"
+            "RUN apt-get update && apt-get install -y curl\n"
+        )
+        path = tmp_dockerfile(content)
+        exit_code = _run_cli(["--unsafe-fixes", str(path)])
+        captured = capsys.readouterr()
+        fixed = path.read_text(encoding="utf-8")
+
+        assert exit_code == 0
+        assert "deprecated" in captured.err
+        assert "MAINTAINER" not in fixed
+        assert "--no-install-recommends" not in fixed
+
 
 # ===========================================================================
 # --format json

@@ -1,12 +1,24 @@
-"""Auto-fixer for Dockerfile Doctor — applies deterministic fixes."""
+"""Auto-fixer for Dockerfile Doctor.
+
+The public CLI applies only safe, mechanical fixes. Review-only handlers remain
+available to the internal test suite and low-level API callers, but are not
+exposed as a command-line mode.
+"""
 
 from __future__ import annotations
 
 import re
 import shlex
+import warnings
 from typing import Any, Optional
 
 from .models import Dockerfile, Fix, Instruction, Issue
+
+
+_UNSAFE_DEPRECATION_MESSAGE = (
+    "unsafe=True is deprecated and now falls back to safe-only fixes. "
+    "Review-only fixes are no longer enabled through the public API."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -28,19 +40,56 @@ def fix(
     multi-line fixes (DD005) that consume lines don't prevent single-line
     fixes from applying on the combined result.
 
-    If *exclude_rules* is given, those rule IDs are never applied — even if
+    If *exclude_rules* is given, those rule IDs are never applied, even if
     the re-analysis in the convergence loop discovers them.
 
-    If *unsafe* is False (default), only safe fixes are applied — rules in
-    ``_RISKY_RULES`` are skipped.  Pass ``unsafe=True`` (``--unsafe-fixes``)
-    to include all fixes.
+    If *unsafe* is False (default), only safe fixes are applied. Rules in
+    ``_REVIEW_ONLY_RULES`` are skipped because they may change runtime behavior,
+    metadata, permissions, or developer intent. The deprecated ``unsafe``
+    keyword is kept only as a compatibility shim; when set to True it emits a
+    warning and still runs safe-only fixes.
     """
+    if unsafe:
+        warnings.warn(
+            _UNSAFE_DEPRECATION_MESSAGE,
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return _fix_pipeline(dockerfile, issues, exclude_rules=exclude_rules)
+
+
+def _fix_with_review_only(
+    dockerfile: Dockerfile,
+    issues: list[Issue],
+    *,
+    exclude_rules: set[str] | None = None,
+) -> tuple[str, list[Fix]]:
+    """Internal helper for targeted tests of review-only handlers.
+
+    This is deliberately private. The public CLI/API applies safe fixes only.
+    """
+    return _fix_pipeline(
+        dockerfile,
+        issues,
+        exclude_rules=exclude_rules,
+        include_review_only=True,
+    )
+
+
+def _fix_pipeline(
+    dockerfile: Dockerfile,
+    issues: list[Issue],
+    *,
+    exclude_rules: set[str] | None = None,
+    include_review_only: bool = False,
+) -> tuple[str, list[Fix]]:
+    """Apply the convergence loop with an explicit review-only gate."""
     from .parser import parse as _parse
     from .rules import analyze as _analyze
 
     _exclude = set(exclude_rules or ())
-    if not unsafe:
-        _exclude |= _RISKY_RULES
+    if not include_review_only:
+        _exclude |= _REVIEW_ONLY_RULES
 
     all_applied: list[Fix] = []
     current_df = dockerfile
@@ -165,19 +214,19 @@ def _fix_once(
 
 _FIX_HANDLERS: dict[str, Any] = {}
 
-# Rules whose auto-fix may change runtime behavior or break builds.
-# --fix skips these; --unsafe-fixes includes them.
-_RISKY_RULES: set[str] = {
-    "DD003",  # --no-install-recommends — may remove needed packages
-    "DD005",  # Combine consecutive RUN — changes layer caching
-    "DD008",  # Add USER instruction — may break permission-dependent workflows
-    "DD010",  # Pin base image digest — locks to specific build, blocks updates
-    "DD015",  # Add PYTHONDONTWRITEBYTECODE etc. — changes Python runtime behavior
-    "DD035",  # Add DEBIAN_FRONTEND=noninteractive — changes apt prompting behavior
-    "DD046",  # Add LABEL instructions — adds metadata that may conflict with CI
-    "DD067",  # Add NODE_ENV=production — changes Node.js runtime behavior
-    "DD072",  # Remove TODO/FIXME comments — deletes developer notes
-    "DD078",  # Add version LABEL — adds metadata
+# Rules whose handler may change runtime behavior, metadata, permissions, or
+# developer intent. CLI --fix skips these and reports them for review instead.
+_REVIEW_ONLY_RULES: set[str] = {
+    "DD003",  # --no-install-recommends may remove needed packages
+    "DD005",  # combining RUN changes layer caching and failure boundaries
+    "DD008",  # adding USER may break permission-dependent workflows
+    "DD010",  # npm install -> npm ci requires lockfile-compatible workflows
+    "DD015",  # Python environment variables change runtime behavior
+    "DD035",  # DEBIAN_FRONTEND changes apt prompting behavior
+    "DD046",  # labels add metadata that may conflict with CI/release tooling
+    "DD067",  # NODE_ENV=production changes Node.js dependency behavior
+    "DD072",  # removing TODO/FIXME deletes developer notes
+    "DD078",  # version labels add release metadata
 }
 
 

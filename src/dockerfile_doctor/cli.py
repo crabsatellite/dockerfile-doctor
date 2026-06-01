@@ -48,6 +48,11 @@ def _error(msg: str) -> None:
     sys.stderr.write(f"dockerfile-doctor: error: {msg}\n")
 
 
+def _warn(msg: str) -> None:
+    """Print a warning message to stderr."""
+    sys.stderr.write(f"dockerfile-doctor: warning: {msg}\n")
+
+
 # ---------------------------------------------------------------------------
 # Arg parsing
 # ---------------------------------------------------------------------------
@@ -55,7 +60,7 @@ def _error(msg: str) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dockerfile-doctor",
-        description="Lint, analyze, and auto-fix Dockerfiles for best practices, security, and performance.",
+        description="Lint Dockerfiles and apply safe mechanical fixes for best practices, security, and performance.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -71,14 +76,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "-f", "--fix",
         action="store_true",
         default=False,
-        help="Auto-fix safe issues (use --unsafe-fixes to include risky changes)",
+        help="Auto-fix safe, mechanical issues",
     )
 
     parser.add_argument(
         "--unsafe-fixes",
         action="store_true",
         default=False,
-        help="Include risky fixes that may change runtime behavior (e.g., --no-install-recommends, combining RUN layers)",
+        help=argparse.SUPPRESS,
     )
 
     parser.add_argument(
@@ -192,6 +197,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    if args.unsafe_fixes:
+        _warn(
+            "--unsafe-fixes is deprecated and now falls back to safe-only "
+            "fixes. Review-only fixes are reported but not modified."
+        )
+        args.fix = True
+
     # --- Validate --diff ref ---
     if args.diff and args.diff.startswith("-"):
         _error(f"Invalid --diff ref: {args.diff!r} (must not start with '-')")
@@ -274,13 +286,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ar = _filter_issues(ar, min_severity=min_severity, ignore=ignore_list)
 
         # Optionally apply fixes (only on filtered issues)
-        if args.fix or args.unsafe_fixes:
+        if args.fix:
             try:
                 excluded = {i.rule_id for i in issues} - {i.rule_id for i in ar.issues}
                 fixed_content, fixes = apply_fixes(
                     dockerfile, ar.issues,
                     exclude_rules=excluded or None,
-                    unsafe=args.unsafe_fixes,
                 )
                 ar.fixes = fixes
                 if fixes:

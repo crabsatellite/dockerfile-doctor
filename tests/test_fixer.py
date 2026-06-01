@@ -6,7 +6,7 @@ import pytest
 
 from dockerfile_doctor.parser import parse
 from dockerfile_doctor.rules import analyze
-from dockerfile_doctor.fixer import fix
+from dockerfile_doctor.fixer import fix, _fix_with_review_only
 from dockerfile_doctor.models import Issue, Fix, Severity, Category
 
 
@@ -18,8 +18,27 @@ def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Is
     """Return (fixed_content, issues, fixes) for inspection."""
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
+    fixer = _fix_with_review_only if unsafe else fix
+    fixed_content, fixes = fixer(df, issues)
     return fixed_content, issues, fixes
+
+
+class TestDeprecatedUnsafeCompatibility:
+    def test_unsafe_true_warns_and_falls_back_to_safe_only(self):
+        content = (
+            "FROM python:3.12\n"
+            "MAINTAINER dev@example.com\n"
+            "CMD [\"python\", \"app.py\"]\n"
+        )
+        df = parse(content)
+        issues = analyze(df)
+
+        with pytest.warns(DeprecationWarning, match="safe-only"):
+            fixed, fixes = fix(df, issues, unsafe=True)
+
+        assert "MAINTAINER" not in fixed
+        assert "USER nobody" not in fixed
+        assert {f.rule_id for f in fixes} == {"DD017"}
 
 
 # ===========================================================================
@@ -117,7 +136,7 @@ class TestNonFixableRules:
         content = "FROM ubuntu:22.04\nCMD [\"bash\"]\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues, unsafe=True)
+        _, fixes = _fix_with_review_only(df, issues)
         dd008_fixes = [f for f in fixes if f.rule_id == "DD008"]
         assert len(dd008_fixes) == 1
 
@@ -126,7 +145,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nENV password=secret123\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues, unsafe=True)
+        _, fixes = _fix_with_review_only(df, issues)
         dd020_fixes = [f for f in fixes if f.rule_id == "DD020"]
         assert len(dd020_fixes) == 0
 
@@ -135,7 +154,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nCMD [\"sh\"]\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues, unsafe=True)
+        _, fixes = _fix_with_review_only(df, issues)
         dd012_fixes = [f for f in fixes if f.rule_id == "DD012"]
         assert len(dd012_fixes) == 0
 
@@ -144,7 +163,7 @@ class TestNonFixableRules:
         content = "FROM alpine:3.19\nEXPOSE 23\n"
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues, unsafe=True)
+        _, fixes = _fix_with_review_only(df, issues)
         dd014_fixes = [f for f in fixes if f.rule_id == "DD014"]
         assert len(dd014_fixes) == 0
 
@@ -232,13 +251,13 @@ class TestSyntaxPreservation:
         issues = analyze(df)
         fixable_issues = [i for i in issues if i.fix_available]
         if not fixable_issues:
-            fixed_content, fixes = fix(df, issues, unsafe=True)
+            fixed_content, fixes = _fix_with_review_only(df, issues)
             # No fixable issues means content should be unchanged
             assert len(fixes) == 0
 
 
 # ===========================================================================
-# Fixer edge cases — overlapping fixes
+# Fixer edge cases 鈥?overlapping fixes
 # ===========================================================================
 
 class TestFixerOverlapping:
@@ -453,7 +472,7 @@ class TestRoundtripIdempotency:
         )
         fixed1, _, fixes1 = _analyze_and_fix(content)
         assert len(fixes1) > 0
-        # Fix again — should produce no more fixes
+        # Fix again 鈥?should produce no more fixes
         fixed2, _, fixes2 = _analyze_and_fix(fixed1)
         assert len([f for f in fixes2 if f.rule_id in ("DD003", "DD004")]) == 0
 
@@ -791,7 +810,7 @@ class TestFixerMultistage:
 # ===========================================================================
 
 class TestFullPipelineIntegration:
-    """Test the full parse → analyze → fix pipeline with real-world Dockerfiles."""
+    """Test the full parse 鈫?analyze 鈫?fix pipeline with real-world Dockerfiles."""
 
     def test_fix_bad_python_dockerfile(self):
         content = (
@@ -802,10 +821,10 @@ class TestFullPipelineIntegration:
             "CMD python app.py\n"
         )
         fixed, issues, fixes = _analyze_and_fix(content)
-        # DD017: MAINTAINER → LABEL
+        # DD017: MAINTAINER 鈫?LABEL
         assert "MAINTAINER" not in fixed
         assert "LABEL maintainer=" in fixed
-        # DD007: ADD → COPY
+        # DD007: ADD 鈫?COPY
         assert "COPY . /app" in fixed
         # DD009: pip --no-cache-dir
         assert "--no-cache-dir" in fixed
@@ -896,7 +915,7 @@ class TestFullPipelineIntegration:
     def test_fix_no_trailing_newline_preserved(self):
         content = "FROM alpine:3.19\nADD . /app"
         fixed, _, _ = _analyze_and_fix(content)
-        # Behavior may vary — just ensure it doesn't crash
+        # Behavior may vary 鈥?just ensure it doesn't crash
         assert "COPY . /app" in fixed
 
 

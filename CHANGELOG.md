@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2026-05-13
+
+### Changed
+- Reposition the project as a safe Dockerfile codemod for CI, PR bots, and
+  agent workflows rather than a broad "fix everything" linter.
+- Deprecate `--unsafe-fixes` and `fix(..., unsafe=True)`. Both legacy entry
+  points now warn and fall back to safe-only fixes; semantic changes remain
+  review-only findings.
+- Reporter output now distinguishes `fixMode` values: `safe`, `review`, and
+  `none`.
+- README now documents ecosystem positioning, safe-fix policy, and the 41
+  safe fixes applied by the CLI.
+- README now includes the public compatibility plan: keep legacy fallback
+  through `0.2.x`, then remove it in `0.3.0` or `1.0.0`.
+
+### Fixed
+- GitHub Action `issues-count` output now reads `totals.issues` from JSON
+  output instead of a non-existent `totals.total` field.
+- Align package `__version__` with the `pyproject.toml` version.
+
 ## [0.1.3] - 2026-03-07
 
 ### Fixed

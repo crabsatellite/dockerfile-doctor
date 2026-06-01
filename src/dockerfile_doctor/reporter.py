@@ -14,6 +14,7 @@ import sys
 from typing import IO, Optional, Sequence
 
 from dockerfile_doctor import __version__
+from dockerfile_doctor.fixer import _REVIEW_ONLY_RULES
 from dockerfile_doctor.models import AnalysisResult, Issue, Severity
 
 
@@ -84,6 +85,22 @@ def _severity_label(severity: Severity) -> str:
     return severity.value.upper()
 
 
+def _is_review_only_fix(issue: Issue) -> bool:
+    return issue.fix_available and issue.rule_id in _REVIEW_ONLY_RULES
+
+
+def _is_safe_fix(issue: Issue) -> bool:
+    return issue.fix_available and issue.rule_id not in _REVIEW_ONLY_RULES
+
+
+def _fix_mode(issue: Issue) -> str:
+    if _is_safe_fix(issue):
+        return "safe"
+    if _is_review_only_fix(issue):
+        return "review"
+    return "none"
+
+
 # ---------------------------------------------------------------------------
 # Text reporter
 # ---------------------------------------------------------------------------
@@ -110,7 +127,8 @@ def _format_text(
         errors = result.error_count
         warnings = result.warning_count
         infos = result.info_count
-        fixable = sum(1 for i in result.issues if i.fix_available)
+        fixable = sum(1 for i in result.issues if _is_safe_fix(i))
+        review_only = sum(1 for i in result.issues if _is_review_only_fix(i))
 
         total_errors += errors
         total_warnings += warnings
@@ -129,7 +147,12 @@ def _format_text(
             for issue in sorted_issues:
                 sc = _severity_color(issue.severity, c)
                 label = _severity_label(issue.severity)
-                fix_tag = f"  {c.GREEN}(fixable){c.RESET}" if issue.fix_available else ""
+                if _is_safe_fix(issue):
+                    fix_tag = f"  {c.GREEN}(fixable){c.RESET}"
+                elif _is_review_only_fix(issue):
+                    fix_tag = f"  {c.YELLOW}(review){c.RESET}"
+                else:
+                    fix_tag = ""
                 line_str = f"Line {issue.line_number}" if issue.line_number > 0 else "File"
                 lines.append(
                     f"  {line_str:<8} {sc}[{label}]{c.RESET}  "
@@ -157,22 +180,15 @@ def _format_text(
                 lines.append(
                     f"  {c.GREEN}{nfixed} fix{'es' if nfixed != 1 else ''} applied{c.RESET}"
                 )
-                # Hint about skipped risky fixes
-                from .fixer import _RISKY_RULES
-                risky_remaining = sum(
-                    1 for i in result.issues
-                    if i.fix_available and i.rule_id in _RISKY_RULES
-                    and not any(f.rule_id == i.rule_id for f in result.fixes)
-                )
-                if risky_remaining:
-                    lines.append(
-                        f"  {c.YELLOW}{risky_remaining} unsafe fix{'es' if risky_remaining != 1 else ''} skipped{c.RESET}"
-                        f" (use {c.BOLD}--unsafe-fixes{c.RESET} to include)"
-                    )
-            elif fixable:
+            if fixable and not result.fixes:
                 lines.append(
-                    f"  {c.GREEN}{fixable} auto-fixable issue{'s' if fixable != 1 else ''}{c.RESET}"
+                    f"  {c.GREEN}{fixable} safe auto-fixable issue{'s' if fixable != 1 else ''}{c.RESET}"
                     f" (use {c.BOLD}--fix{c.RESET} to apply)"
+                )
+            if review_only:
+                lines.append(
+                    f"  {c.YELLOW}{review_only} review-only suggestion{'s' if review_only != 1 else ''}{c.RESET}"
+                    " (not modified by --fix)"
                 )
             lines.append("")
 
@@ -201,6 +217,7 @@ def _format_text(
 # ---------------------------------------------------------------------------
 
 def _issue_to_dict(issue: Issue) -> dict:
+    mode = _fix_mode(issue)
     d = {
         "ruleId": issue.rule_id,
         "title": issue.title,
@@ -208,9 +225,10 @@ def _issue_to_dict(issue: Issue) -> dict:
         "severity": issue.severity.value,
         "category": issue.category.value,
         "line": issue.line_number,
-        "fixAvailable": issue.fix_available,
+        "fixAvailable": mode == "safe",
+        "fixMode": mode,
     }
-    if issue.fix_description:
+    if issue.fix_description and mode != "none":
         d["fixDescription"] = issue.fix_description
     return d
 
@@ -231,7 +249,8 @@ def _format_json(results: Sequence[AnalysisResult]) -> str:
                     "errors": r.error_count,
                     "warnings": r.warning_count,
                     "infos": r.info_count,
-                    "fixable": sum(1 for i in r.issues if i.fix_available),
+                    "fixable": sum(1 for i in r.issues if _is_safe_fix(i)),
+                    "reviewOnly": sum(1 for i in r.issues if _is_review_only_fix(i)),
                 },
             }
             for r in results
@@ -289,7 +308,7 @@ def _format_sarif(results: Sequence[AnalysisResult]) -> str:
                     }
                 ],
             }
-            if issue.fix_available and issue.fix_description:
+            if _is_safe_fix(issue) and issue.fix_description:
                 sarif_result["fixes"] = [
                     {
                         "description": {

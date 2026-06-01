@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from dockerfile_doctor.parser import parse
 from dockerfile_doctor.rules import analyze
-from dockerfile_doctor.fixer import fix
+from dockerfile_doctor.fixer import fix, _fix_with_review_only
 from dockerfile_doctor.models import Issue, Fix, Severity, Category
 from dockerfile_doctor.score import compute_scores, format_score_json, format_score_text
 from dockerfile_doctor.diff import _parse_diff_hunks, filter_issues_by_diff
@@ -15,7 +15,8 @@ from tests.conftest import has_rule, count_rule, get_issues_for_rule
 def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Issue], list[Fix]]:
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
+    fixer = _fix_with_review_only if unsafe else fix
+    fixed_content, fixes = fixer(df, issues)
     return fixed_content, issues, fixes
 
 
@@ -933,7 +934,7 @@ CMD python app.py
 """
         df = parse(content)
         issues_before = analyze(df)
-        fixed, fixes = fix(df, issues_before, unsafe=True)
+        fixed, fixes = _fix_with_review_only(df, issues_before)
         df2 = parse(fixed)
         issues_after = analyze(df2)
         # Fewer issues after fix
@@ -948,7 +949,7 @@ CMD ["echo", "hello"]
 """
         df = parse(content)
         issues_before = analyze(df)
-        fixed, fixes = fix(df, issues_before, unsafe=True)
+        fixed, fixes = _fix_with_review_only(df, issues_before)
         df2 = parse(fixed)
         issues_after = analyze(df2)
 
@@ -1057,7 +1058,7 @@ CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000"]
 """
         df = parse(content)
         issues = analyze(df)
-        _, fixes = fix(df, issues, unsafe=True)
+        _, fixes = _fix_with_review_only(df, issues)
         # Most fixable rules should not fire on a clean Dockerfile
         # (some unfixable rules may still fire)
         fixable_issues = [i for i in issues if i.fix_available]

@@ -15,7 +15,7 @@ import textwrap
 
 import pytest
 
-from dockerfile_doctor.fixer import fix
+from dockerfile_doctor.fixer import fix, _fix_with_review_only
 from dockerfile_doctor.models import AnalysisResult, Severity
 from dockerfile_doctor.parser import parse
 from dockerfile_doctor.reporter import _format_sarif, report
@@ -30,7 +30,8 @@ def _full_pipeline(content: str, *, unsafe: bool = True) -> tuple[str, list]:
     """Parse -> analyze -> fix, return (fixed_content, applied_fixes)."""
     df = parse(content)
     issues = analyze(df)
-    return fix(df, issues, unsafe=unsafe)
+    fixer = _fix_with_review_only if unsafe else fix
+    return fixer(df, issues)
 
 
 def _fix_and_refix(content: str):
@@ -612,21 +613,21 @@ class TestSarifValidity:
 
 
 # ===========================================================================
-# 6. Semantic Invariants — property-based fixer correctness
+# 6. Semantic Invariants 鈥?property-based fixer correctness
 # ===========================================================================
 
 class TestFixerSemanticInvariants:
     """Properties that fixer output must satisfy, regardless of specific text.
 
     These catch bugs where the fixer produces syntactically valid but
-    semantically wrong output (e.g. COPY . . → COPY . /.).
+    semantically wrong output (e.g. COPY . . 鈫?COPY . /.).
     """
 
     # --- DD041: relative dest rewriting must not break '.' or '..' ---
 
     @pytest.mark.parametrize("dest", [".", "..", "./", "../"])
     def test_dd041_dot_destinations_never_get_slash_prefix(self, dest):
-        """'.' and '..' are special — prepending '/' changes their meaning."""
+        """'.' and '..' are special 鈥?prepending '/' changes their meaning."""
         content = f"FROM ubuntu:22.04\nCOPY src {dest}\n"
         fixed, _ = _full_pipeline(content)
         # Must never produce '/.' or '/..'
@@ -639,7 +640,7 @@ class TestFixerSemanticInvariants:
         fixed, _ = _full_pipeline(content)
         assert "/app/" in fixed
 
-    # --- DD059: ADD URL → curl must produce valid -o path ---
+    # --- DD059: ADD URL 鈫?curl must produce valid -o path ---
 
     @pytest.mark.parametrize("dest", ["/app/", "/tmp/", "/opt/data/"])
     def test_dd059_directory_dest_produces_file_path(self, dest):
@@ -740,14 +741,14 @@ class TestFixerSemanticInvariants:
         issues = analyze(df)
         fixable_before = sum(1 for i in issues if i.fix_available)
 
-        fixed, fixes = fix(df, issues, unsafe=True)
+        fixed, fixes = _fix_with_review_only(df, issues)
         df2 = parse(fixed)
         issues2 = analyze(df2)
         fixable_after = sum(1 for i in issues2 if i.fix_available)
 
         if fixes:
             assert fixable_after < fixable_before, (
-                f"Fixable issues didn't decrease: {fixable_before} → {fixable_after}"
+                f"Fixable issues didn't decrease: {fixable_before} 鈫?{fixable_after}"
             )
 
     # --- DD067: NODE_ENV must not trigger on non-node images ---
@@ -944,7 +945,7 @@ class TestCrossReviewFixer:
             assert not _re.search(r"curl.*-o\s+/app/\s", fixed), "curl -o targets bare directory"
 
     def test_dd035_dd015_insertion_collision(self):
-        """DD035 and DD015 both insert after FROM — shouldn't collide."""
+        """DD035 and DD015 both insert after FROM 鈥?shouldn't collide."""
         content = textwrap.dedent("""\
             FROM ubuntu:22.04 AS apt-stage
             RUN apt-get update && apt-get install -y curl
@@ -1049,7 +1050,7 @@ class TestCrossReviewAdversarial:
         content = "FROM alpine:3.19\nRUN echo hello \\"
         df = parse(content)
         issues = analyze(df)
-        fixed, fixes = fix(df, issues, unsafe=True)
+        fixed, fixes = _fix_with_review_only(df, issues)
         assert isinstance(fixed, str)
 
     def test_out_of_bounds_line_number(self):

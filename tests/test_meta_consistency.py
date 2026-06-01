@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import ast
 import re
-import subprocess
 import textwrap
 from pathlib import Path
 
 import pytest
 
-from dockerfile_doctor.fixer import _FIX_HANDLERS
+from dockerfile_doctor.fixer import _FIX_HANDLERS, _REVIEW_ONLY_RULES
 from dockerfile_doctor.models import Issue, Severity, Category
 from dockerfile_doctor.parser import parse, _KNOWN_DIRECTIVES
 from dockerfile_doctor.rules import ALL_RULES, analyze
@@ -185,10 +184,11 @@ class TestRuleCountMatchesReadme:
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
         assert "80 rules" in readme, "README should mention 80 rules"
 
-    def test_readme_claims_50_fixers(self):
+    def test_readme_claims_safe_fixers(self):
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-        assert "50" in readme and "auto-fix" in readme.lower(), (
-            "README should mention 50 auto-fixers"
+        safe_handler_count = len(set(_FIX_HANDLERS) - _REVIEW_ONLY_RULES)
+        assert f"{safe_handler_count} safe auto-fix" in readme, (
+            "README should mention the current safe auto-fix count"
         )
 
 
@@ -347,10 +347,15 @@ class TestSarifConsistency:
         for sr in sarif_results:
             # Find the matching Issue
             matching = [i for i in issues if i.rule_id == sr["ruleId"]]
-            if matching and matching[0].fix_available and matching[0].fix_description:
+            if (
+                matching
+                and matching[0].fix_available
+                and matching[0].fix_description
+                and matching[0].rule_id not in _REVIEW_ONLY_RULES
+            ):
                 assert "fixes" in sr, (
                     f"SARIF result for {sr['ruleId']} should have 'fixes' "
-                    f"since fix_available=True and fix_description is set"
+                    f"since it is a safe fix with fix_description set"
                 )
 
     def test_sarif_schema_version(self):
@@ -436,21 +441,29 @@ class TestReadmeTestCount:
         README uses "1,400+ tests" format — we extract the lower bound and
         verify the actual collected count meets or exceeds it.
         """
-        result = subprocess.run(
-            ["python", "-m", "pytest", "--collect-only", "-q",
-             str(_PROJECT_ROOT / "tests")],
-            capture_output=True,
-            text=True,
-            cwd=str(_PROJECT_ROOT),
-        )
-
-        # Parse "N tests collected" or "N selected"
+        # Avoid nested pytest subprocess collection here. On some Windows /
+        # Python 3.14 builds, subprocess pipe handle duplication can fail
+        # before pytest starts. A simple AST count plus common parametrize
+        # expansion is enough for the README lower-bound guard.
         collected = 0
-        for line in result.stdout.splitlines():
-            m = re.search(r"(\d+)\s+test", line)
-            if m:
-                collected = int(m.group(1))
-                break
+        for test_file in (_PROJECT_ROOT / "tests").glob("test_*.py"):
+            tree = ast.parse(test_file.read_text(encoding="utf-8-sig"))
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if not node.name.startswith("test_"):
+                    continue
+                multiplier = 1
+                for decorator in node.decorator_list:
+                    if not isinstance(decorator, ast.Call) or len(decorator.args) < 2:
+                        continue
+                    name = ast.unparse(decorator.func)
+                    if not name.endswith("pytest.mark.parametrize"):
+                        continue
+                    cases = decorator.args[1]
+                    if isinstance(cases, (ast.List, ast.Tuple)):
+                        multiplier *= len(cases.elts)
+                collected += multiplier
 
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
         # Match "1,400+ tests" or "1,454 tests" or "1400+ tests"
@@ -486,16 +499,16 @@ class TestHandlerRuleBijection:
             )
 
     def test_handler_count_matches_or_exceeds_readme(self):
-        """README says 50 auto-fixers — handler count should be >= 50.
-
-        The actual count (51) exceeds the README claim, which is acceptable
-        (under-promise). If the count ever drops below 50, something broke.
-        """
+        """README safe auto-fix count should match the safe handler set."""
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-        m = re.search(r"(\d+)\s+(?:deterministic\s+)?auto-fix", readme)
-        assert m, "README should mention auto-fixer count"
+        actual = len(set(_FIX_HANDLERS) - _REVIEW_ONLY_RULES)
+        assert f"**{actual} safe auto-fixes**" in readme, (
+            "README should mention the safe auto-fix count in the feature list"
+        )
+        m = re.search(r"\*\*(\d+)\s+safe\s+auto-fixes\*\*", readme)
+        assert m, "README should mention safe auto-fix count"
         claimed = int(m.group(1))
-        assert len(_FIX_HANDLERS) >= claimed, (
-            f"README claims {claimed} auto-fixers but only "
-            f"{len(_FIX_HANDLERS)} handlers exist"
+        assert actual == claimed, (
+            f"README claims {claimed} safe auto-fixes but "
+            f"{actual} safe handlers exist"
         )

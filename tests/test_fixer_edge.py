@@ -3,14 +3,15 @@ from __future__ import annotations
 
 from dockerfile_doctor.parser import parse
 from dockerfile_doctor.rules import analyze
-from dockerfile_doctor.fixer import fix
+from dockerfile_doctor.fixer import fix, _fix_with_review_only
 from dockerfile_doctor.models import Issue, Fix, Severity, Category
 
 
 def _analyze_and_fix(content: str, *, unsafe: bool = True) -> tuple[str, list[Issue], list[Fix]]:
     df = parse(content)
     issues = analyze(df)
-    fixed_content, fixes = fix(df, issues, unsafe=unsafe)
+    fixer = _fix_with_review_only if unsafe else fix
+    fixed_content, fixes = fixer(df, issues)
     return fixed_content, issues, fixes
 
 
