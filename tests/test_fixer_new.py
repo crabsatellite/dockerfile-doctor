@@ -2,7 +2,8 @@
 
 from dockerfile_doctor.parser import parse
 from dockerfile_doctor.rules import analyze
-from dockerfile_doctor.fixer import _fix_with_review_only
+from dockerfile_doctor.fixer import _FIX_HANDLERS, _fix_with_review_only
+from dockerfile_doctor.models import Category, Issue, Severity
 
 
 # ===== DD008 鈥?No USER instruction =====
@@ -128,6 +129,74 @@ def test_dd068_fix_with_eclipse_temurin():
     fixed, fixes = _fix_with_review_only(df, issues)
     assert "JAVA_OPTS" in fixed
     assert any(f.rule_id == "DD068" for f in fixes)
+
+
+def test_dd068_updates_existing_java_opts_without_duplicate_env():
+    content = (
+        "FROM openjdk:17.0.2-slim\n"
+        "ENV JAVA_OPTS=\"-agentlib:jdwp=transport=dt_socket,server=y\"\n"
+        "CMD [\"java\", \"-version\"]\n"
+    )
+    df = parse(content)
+    issues = analyze(df)
+    fixed, fixes = _fix_with_review_only(df, issues)
+    assert any(f.rule_id == "DD068" for f in fixes)
+    assert fixed.count("ENV JAVA_OPTS") == 1
+    assert "-agentlib:jdwp" in fixed
+    assert "UseContainerSupport" in fixed
+    assert "MaxRAMPercentage" in fixed
+    fixed_again, fixes_again = _fix_with_review_only(parse(fixed), analyze(parse(fixed)))
+    assert fixed_again == fixed
+    assert not any(f.rule_id == "DD068" for f in fixes_again)
+
+
+def test_dd068_updates_unquoted_java_opts():
+    content = (
+        "FROM openjdk:17\n"
+        "ENV JAVA_OPTS=-Xmx512m\n"
+        "CMD [\"java\", \"-version\"]\n"
+    )
+    df = parse(content)
+    issues = analyze(df)
+    fixed, fixes = _fix_with_review_only(df, issues)
+    assert any(f.rule_id == "DD068" for f in fixes)
+    assert "ENV JAVA_OPTS=-Xmx512m -XX:+UseContainerSupport" in fixed
+    assert fixed.count("ENV JAVA_OPTS") == 1
+
+
+def test_dd068_multistage_does_not_rewrite_next_stage_env():
+    content = (
+        "FROM openjdk:17 AS java-stage\n"
+        "RUN echo java\n"
+        "FROM alpine:3.19\n"
+        "ENV JAVA_OPTS=-Xmx512m\n"
+    )
+    df = parse(content)
+    issues = analyze(df)
+    fixed, fixes = _fix_with_review_only(df, issues)
+    assert any(f.rule_id == "DD068" for f in fixes)
+    lines = fixed.splitlines()
+    java_from = lines.index("FROM openjdk:17 AS java-stage")
+    alpine_from = lines.index("FROM alpine:3.19")
+    inserted = next(i for i, line in enumerate(lines) if "UseContainerSupport" in line)
+    assert java_from < inserted < alpine_from
+    assert "ENV JAVA_OPTS=-Xmx512m" in fixed
+
+
+def test_dd068_handler_noops_when_existing_java_opts_has_flags():
+    content = 'FROM openjdk:17\nENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"\n'
+    df = parse(content)
+    lines = [""] + content.splitlines()
+    issue = Issue(
+        rule_id="DD068",
+        title="Java without container-aware JVM flags",
+        description="test",
+        severity=Severity.INFO,
+        category=Category.PERFORMANCE,
+        line_number=0,
+        fix_available=True,
+    )
+    assert _FIX_HANDLERS["DD068"](lines, issue, df) is None
 
 
 def test_dd068_no_fix_when_flags_exist():

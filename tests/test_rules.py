@@ -323,6 +323,33 @@ class TestDD004MissingAptCleanup:
         issues = _run_single_rule(content, dd004_apt_cache_cleanup)
         assert len(issues) == 0
 
+    def test_no_trigger_with_rm_r_lists(self):
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y curl && rm -r /var/lib/apt/lists/*\n"
+        )
+        issues = _run_single_rule(content, dd004_apt_cache_cleanup)
+        assert len(issues) == 0
+
+    def test_no_trigger_with_lists_among_multiple_rm_paths(self):
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y curl && rm -rf /tmp/* /var/lib/apt/lists/*\n"
+        )
+        issues = _run_single_rule(content, dd004_apt_cache_cleanup)
+        assert len(issues) == 0
+
+    def test_no_trigger_across_continuation_comment_boundary(self):
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update \\\n"
+            "    && apt-get install -y --no-install-recommends curl \\\n"
+            "    # install from source\n"
+            "    && rm -rf /var/lib/apt/lists/*\n"
+        )
+        issues = _run_single_rule(content, dd004_apt_cache_cleanup)
+        assert len(issues) == 0
+
     def test_triggers_multiline_no_cleanup(self):
         content = (
             "FROM ubuntu:22.04\n"

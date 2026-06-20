@@ -1088,6 +1088,16 @@ class TestFixerDD080EdgeCases:
         fix_result = _FIX_HANDLERS["DD080"](lines, issue, df)
         assert fix_result is None
 
+    def test_invalid_json_array_becomes_valid_json(self):
+        content = 'FROM ubuntu:22.04\nVOLUME ["/data", /logs]\n'
+        df = _parse(content)
+        issue = _make_issue("DD080", line_number=2)
+        lines = [""] + content.split("\n")
+        from dockerfile_doctor.fixer import _FIX_HANDLERS
+        fix_result = _FIX_HANDLERS["DD080"](lines, issue, df)
+        assert fix_result is not None
+        assert lines[2] == 'VOLUME ["/data", "/logs"]'
+
     def test_shell_form_volume(self):
         content = "FROM ubuntu:22.04\nVOLUME /data /logs\n"
         df = _parse(content)

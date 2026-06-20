@@ -207,13 +207,30 @@ def dd003_no_install_recommends(dockerfile: Dockerfile) -> list[Issue]:
 # ---------------------------------------------------------------------------
 # DD004 — Missing apt cache cleanup
 # ---------------------------------------------------------------------------
+_APT_LISTS_CLEANUP_RE = re.compile(
+    r"\brm\s+(?:-[^\s]+\s+)*(?:[^\n;&|]*\s+)*/var/lib/apt/lists(?:/\*)?"
+)
+
+
+def _has_apt_lists_cleanup(args: str) -> bool:
+    return bool(_APT_LISTS_CLEANUP_RE.search(args))
+
+
+def _has_continuation_comment_boundary(args: str) -> bool:
+    return "#" in args or any(line.lstrip().startswith("#") for line in args.splitlines()[1:])
+
+
 @rule
 def dd004_apt_cache_cleanup(dockerfile: Dockerfile) -> list[Issue]:
     issues: list[Issue] = []
     for instr in _instructions_by_directive(dockerfile, "RUN"):
         args = instr.arguments
         has_apt_install = "apt-get install" in args or bool(re.search(r"\bapt\s+install\b", args))
-        if has_apt_install and "rm -rf /var/lib/apt/lists" not in args:
+        if (
+            has_apt_install
+            and not _has_apt_lists_cleanup(args)
+            and not _has_continuation_comment_boundary(args)
+        ):
             issues.append(Issue(
                 rule_id="DD004",
                 title="Missing apt cache cleanup",

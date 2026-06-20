@@ -50,6 +50,64 @@ class TestFixerMultiline:
         assert len(dd004) >= 1
         assert "rm -rf /var/lib/apt/lists/*" in fixed
 
+    def test_dd004_skips_continuation_comment_boundary(self):
+        """DD004 should not append cleanup after a continuation comment."""
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update \\\n"
+            "    && apt-get install -y --no-install-recommends curl \\\n"
+            "    # install from source\n"
+            "    && rm -rf /var/lib/apt/lists/*\n"
+        )
+        df = parse(content)
+        issues = [issue for issue in analyze(df) if issue.rule_id == "DD004"]
+        fixed, fixes = _fix_with_review_only(df, issues)
+        dd004 = [fix for fix in fixes if fix.rule_id == "DD004"]
+        assert dd004 == []
+        assert fixed == content
+
+    def test_dd004_skips_existing_rm_r_cleanup(self):
+        """DD004 should accept rm -r apt-list cleanup as already clean."""
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y --no-install-recommends curl "
+            "&& rm -r /var/lib/apt/lists/*\n"
+        )
+        df = parse(content)
+        issue = Issue(
+            rule_id="DD004",
+            title="Missing apt cache cleanup",
+            description="",
+            severity=Severity.WARNING,
+            category=Category.PERFORMANCE,
+            line_number=2,
+            fix_available=True,
+        )
+        fixed, fixes = _fix_with_review_only(df, [issue])
+        assert [fix for fix in fixes if fix.rule_id == "DD004"] == []
+        assert fixed == content
+
+    def test_dd004_skips_existing_multi_path_cleanup(self):
+        """DD004 should accept apt-list cleanup mixed with other rm paths."""
+        content = (
+            "FROM ubuntu:22.04\n"
+            "RUN apt-get update && apt-get install -y --no-install-recommends curl "
+            "&& rm -rf /tmp/* /var/lib/apt/lists/*\n"
+        )
+        df = parse(content)
+        issue = Issue(
+            rule_id="DD004",
+            title="Missing apt cache cleanup",
+            description="",
+            severity=Severity.WARNING,
+            category=Category.PERFORMANCE,
+            line_number=2,
+            fix_available=True,
+        )
+        fixed, fixes = _fix_with_review_only(df, [issue])
+        assert [fix for fix in fixes if fix.rule_id == "DD004"] == []
+        assert fixed == content
+
     def test_dd009_multiline_pip_install(self):
         """DD009 should add --no-cache-dir to multiline pip install."""
         content = (

@@ -7,6 +7,7 @@ exposed as a command-line mode.
 
 from __future__ import annotations
 
+import json
 import re
 import shlex
 import warnings
@@ -260,6 +261,20 @@ def _get_full_instruction(lines: list[str], start_line: int) -> str:
     return "\n".join(lines[start:end + 1])
 
 
+def _has_continuation_comment_boundary(full: str) -> bool:
+    """Return True when a continuation segment stops on a Dockerfile comment."""
+    return "#" in full or any(line.lstrip().startswith("#") for line in full.splitlines()[1:])
+
+
+_APT_LISTS_CLEANUP_RE = re.compile(
+    r"\brm\s+(?:-[^\s]+\s+)*(?:[^\n;&|]*\s+)*/var/lib/apt/lists(?:/\*)?"
+)
+
+
+def _has_apt_lists_cleanup(full: str) -> bool:
+    return bool(_APT_LISTS_CLEANUP_RE.search(full))
+
+
 def _set_instruction(lines: list[str], start_line: int, new_text: str) -> None:
     """Replace an instruction (possibly multi-line) with new text."""
     start, end = _find_instruction_lines(lines, start_line)
@@ -316,7 +331,9 @@ def _fix_dd003(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
 @_handler("DD004")
 def _fix_dd004(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Optional[Fix]:
     full = _get_full_instruction(lines, issue.line_number)
-    if "rm -rf /var/lib/apt/lists" in full:
+    if _has_apt_lists_cleanup(full):
+        return None
+    if _has_continuation_comment_boundary(full):
         return None
     # Skip if a later RUN in the same stage OR a child stage (FROM <this_stage>)
     # also has apt-get install — adding cleanup here would break it.
@@ -1347,10 +1364,23 @@ def _fix_dd080(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
     if not m:
         return None
     args = m.group(1).strip()
-    if args.startswith('['):
+    if args.startswith("["):
+        try:
+            json.loads(args)
+            return None
+        except json.JSONDecodeError:
+            inner = args[1:]
+            if inner.endswith("]"):
+                inner = inner[:-1]
+            paths = [
+                part.strip().strip('"').strip("'")
+                for part in inner.split(",")
+                if part.strip()
+            ]
+    else:
+        paths = args.split()
+    if not paths:
         return None
-    # Split paths and convert to JSON array
-    paths = args.split()
     json_form = '[' + ', '.join(f'"{p}"' for p in paths) + ']'
     fixed = f'VOLUME {json_form}'
     _set_instruction(lines, issue.line_number, fixed)
@@ -1443,6 +1473,7 @@ def _fix_dd046(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
 @_handler("DD068")
 def _fix_dd068(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Optional[Fix]:
     java_images = ("openjdk", "java", "eclipse-temurin", "amazoncorretto")
+    java_flags = "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
     # Find the LAST Java FROM in the mutable lines list (not stale instruction objects)
     # to handle index shifts from earlier insertions in the same pass.
     target_idx = None
@@ -1456,11 +1487,34 @@ def _fix_dd068(lines: list[str], issue: Issue, dockerfile: Dockerfile) -> Option
                 target_idx = idx
     if target_idx is None:
         return None
+    next_from_idx = len(lines)
+    for idx in range(target_idx + 1, len(lines)):
+        if _from_re.match(lines[idx]):
+            next_from_idx = idx
+            break
+    for idx in range(target_idx + 1, next_from_idx):
+        line = lines[idx]
+        env_match = re.match(r"^(\s*ENV\s+JAVA_OPTS=)(.*)$", line, re.IGNORECASE)
+        old_style_match = re.match(r"^(\s*ENV\s+JAVA_OPTS\s+)(.*)$", line, re.IGNORECASE)
+        match = env_match or old_style_match
+        if not match:
+            continue
+        value = match.group(2).strip()
+        if "UseContainerSupport" in value or "MaxRAMPercentage" in value:
+            return None
+        if value[:1] in {'"', "'"} and value.endswith(value[0]):
+            new_value = f"{value[:-1].rstrip()} {java_flags}{value[0]}"
+        else:
+            new_value = f"{value} {java_flags}".strip()
+        fixed = f"{match.group(1)}{new_value}"
+        lines[idx] = fixed
+        return Fix(rule_id="DD068", description="Added container-aware flags to JAVA_OPTS.",
+                   replacements=[(idx, line, fixed)])
     # Find end of this instruction (handle continuations)
     end = target_idx
     while end < len(lines) - 1 and lines[end].rstrip().endswith("\\"):
         end += 1
-    new_line = 'ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"'
+    new_line = f'ENV JAVA_OPTS="{java_flags}"'
     lines.insert(end + 1, new_line)
     return Fix(rule_id="DD068", description="Added JAVA_OPTS with container-aware flags.",
                insertions=[(end + 1, new_line)])

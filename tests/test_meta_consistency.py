@@ -184,12 +184,11 @@ class TestRuleCountMatchesReadme:
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
         assert "80 rules" in readme, "README should mention 80 rules"
 
-    def test_readme_claims_safe_fixers(self):
+    def test_readme_discloses_research_status(self):
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-        safe_handler_count = len(set(_FIX_HANDLERS) - _REVIEW_ONLY_RULES)
-        assert f"{safe_handler_count} safe auto-fix" in readme, (
-            "README should mention the current safe auto-fix count"
-        )
+        assert "research project" in readme
+        assert "not a production one-click" in readme
+        assert "Do not treat this repository as a source of unattended upstream PRs" in readme
 
 
 # ===========================================================================
@@ -498,17 +497,12 @@ class TestHandlerRuleBijection:
                 f"_FIX_HANDLERS has key {handler_key!r} but no such rule exists"
             )
 
-    def test_handler_count_matches_or_exceeds_readme(self):
-        """README safe auto-fix count should match the safe handler set."""
+    def test_readme_reports_current_corpus_findings(self):
+        """README should report the current manual-review evidence."""
         readme = (_PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
-        actual = len(set(_FIX_HANDLERS) - _REVIEW_ONLY_RULES)
-        assert f"**{actual} safe auto-fixes**" in readme, (
-            "README should mention the safe auto-fix count in the feature list"
-        )
-        m = re.search(r"\*\*(\d+)\s+safe\s+auto-fixes\*\*", readme)
-        assert m, "README should mention safe auto-fix count"
-        claimed = int(m.group(1))
-        assert actual == claimed, (
-            f"README claims {claimed} safe auto-fixes but "
-            f"{actual} safe handlers exist"
-        )
+        assert "100 Dockerfile-like files" in readme
+        assert "41 public repositories" in readme
+        assert "139 fixer operations" in readme
+        assert "62 files" in readme
+        assert "6 behavior-equivalent" in readme
+        assert "48 non-equivalent" in readme
